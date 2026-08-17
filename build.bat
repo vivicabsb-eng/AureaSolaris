@@ -18,8 +18,8 @@ if errorlevel 1 (
     popd
     exit /b 1
 )
-if not exist "dist\index.html" (
-    echo ERRO: dist\index.html nao foi gerado; o empacotamento foi interrompido.
+if not exist "apps\web\dist\index.html" (
+    echo ERRO: apps\web\dist\index.html nao foi gerado; o empacotamento foi interrompido.
     popd
     exit /b 1
 )

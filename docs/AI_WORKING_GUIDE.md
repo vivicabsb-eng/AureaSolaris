@@ -19,20 +19,20 @@ Aurea Solaris is a local-first Windows application whose primary experience is c
 
 | Task | Start here |
 |---|---|
-| React screens/components | `src/App.tsx`, `src/components/` |
-| Frontend identity/profile state | `src/features/identity/` |
-| Frontend agenda/task/event state | `src/features/agenda/` |
-| Frontend astrology preferences/helpers | `src/features/astrology/` |
-| Frontend health-document state | `src/features/health/` |
-| Cross-feature frontend workflows | `src/app/workflows/`, `src/app/AppProviders.tsx` |
-| Legacy frontend context compatibility | `src/context/AgendaContext.tsx` — thin adapter only; do not add new state, persistence, or domain rules here |
-| Caderno Vivo / journal | `src/components/MesaCriacao.tsx`, `src/components/DiarioView.tsx` |
-| Browser/Chrome runtime | `vite.config.ts`, `main_api.py`, `launch_chrome.bat` |
+| React screens/components | `apps/web/src/App.tsx`, `apps/web/src/components/` |
+| Frontend identity/profile state | `apps/web/src/features/identity/` |
+| Frontend agenda/task/event state | `apps/web/src/features/agenda/` |
+| Frontend astrology preferences/helpers | `apps/web/src/features/astrology/` |
+| Frontend health-document state | `apps/web/src/features/health/` |
+| Cross-feature frontend workflows | `apps/web/src/app/workflows/`, `apps/web/src/app/AppProviders.tsx` |
+| Legacy frontend context compatibility | `apps/web/src/context/AgendaContext.tsx` — thin adapter only; do not add new state, persistence, or domain rules here |
+| Caderno Vivo / journal | `apps/web/src/components/MesaCriacao.tsx`, `apps/web/src/components/DiarioView.tsx` |
+| Browser/Chrome runtime | `apps/web/vite.config.ts`, `main_api.py`, `launch_chrome.bat` |
 | Tauri commands/window/native compatibility | `src-tauri/src/lib.rs`, `src-tauri/tauri.conf.json`, `docs/tauri-ipc-api.md` |
 | Astrology calculations/API | `astro_engine.py`, `main_api.py`, `docs/astrology-engine.md` |
 | Private/editorial storage | `local_storage.py`, `src-tauri/migrations/`, `docs/data-persistence.md`, `docs/data/DOMINIOS_DE_DADOS.md` |
 | Knowledge corpus/import | `knowledge/engenharia_astrologica/`, `docs/astrology-knowledge-contract.md`, `docs/data/ENGENHARIA_SYNC_PLAYBOOK.md` |
-| Hermes memory/API | `src/components/HermesChat.tsx`, `docs/HERMES_MIND_ARCHITECTURE.md`, `docs/HERMES_MIND_API.md` |
+| Hermes memory/API | `apps/web/src/components/HermesChat.tsx`, `docs/HERMES_MIND_ARCHITECTURE.md`, `docs/HERMES_MIND_API.md` |
 | Release/installer | `build.bat`, `build_sidecar.spec`, `src-tauri/binaries/`, `docs/RELEASE_VALIDATION_2026-08-10.md` |
 
 Feature-owned frontend state keeps domain logic separate from browser persistence. Put pure behavior in the feature model, browser-key access in that feature's storage adapter, and React state/actions in the feature context. New feature code must consume the feature API rather than expanding the legacy `AgendaContext` facade.
@@ -46,7 +46,7 @@ Feature-owned frontend state keeps domain logic separate from browser persistenc
 - A mode environment change needs an API restart.
 - Require-login is for known-password accounts; password enrollment for an auto-created owner is not part of this change.
 - Multiple, disabled, orphaned, or mismatched owners stop at setup-required and are never migrated automatically.
-- `npm run build` updates `dist` only. It does not update the PyInstaller executable.
+- `npm run build` updates `apps/web/dist` only. It does not update the PyInstaller executable.
 - `build.bat` is the release path that rebuilds the frontend and embedded runtime.
 
 ## Test-user sandbox (preferred for agents)
@@ -80,7 +80,7 @@ On `-Reset`, the launcher stops Aurea test-user runtimes on ports **9878–9899*
 
 **What the dummy life includes** (high level):
 
-- **Mandala / maps** — reference natal (Belo Horizonte fixture) plus a second known-person map (UI seed via `src/fixtures/test-user-ui.json`).
+- **Mandala / maps** — reference natal (Belo Horizonte fixture) plus a second known-person map (UI seed via `apps/web/src/fixtures/test-user-ui.json`).
 - **Caderno Vivo** — board with sticky notes and a link between them.
 - **Diário** — folder and sample entry.
 - **Agenda** — sample tasks and one event.
@@ -109,15 +109,15 @@ The three PR check names below are stable automation interfaces. Do not casually
 | `Python Quality` | Ubuntu-safe API/runtime/storage/unit coverage | classified `python -m unittest ... -v` suite |
 | `E2E` | Authoritative isolated compiled frontend + Python runtime + Playwright validation | build → compiled runtime smoke → `python tools/run_e2e.py --skip-build` |
 
-`Frontend Quality` and `Python Quality` run independently. `E2E` starts only after both pass, builds `dist` once, runs `tests.test_compiled_runtime_smoke`, installs Chromium only after that preflight, then runs the isolated Playwright harness against the exact build.
+`Frontend Quality` and `Python Quality` run independently. `E2E` starts only after both pass, builds `apps/web/dist` once, runs `tests.test_compiled_runtime_smoke`, installs Chromium only after that preflight, then runs the isolated Playwright harness against the exact build.
 
-For normal local/agent E2E, use `python tools/run_e2e.py`; it intentionally rebuilds `dist` so stale frontend output cannot be tested accidentally. Use `python tools/run_e2e.py --skip-build` only when `npm run build` completed successfully immediately beforehand in the same workflow/session and the caller intends to test that exact build.
+For normal local/agent E2E, use `python tools/run_e2e.py`; it intentionally rebuilds `apps/web/dist` so stale frontend output cannot be tested accidentally. Use `python tools/run_e2e.py --skip-build` only when `npm run build` completed successfully immediately beforehand in the same workflow/session and the caller intends to test that exact build.
 
-Every `tests/test_*.py` file must be listed exactly once in `.github/python-test-classification.txt`. The CI classification check fails on new unclassified tests, deleted-but-listed tests, duplicates, or unknown categories. `python-quality` modules run in `Python Quality`; `integration` modules run after prerequisites such as `dist`; platform/release-only and legacy pytest-style coverage remain explicitly classified rather than silently omitted.
+Every `tests/test_*.py` file must be listed exactly once in `.github/python-test-classification.txt`. The CI classification check fails on new unclassified tests, deleted-but-listed tests, duplicates, or unknown categories. `python-quality` modules run in `Python Quality`; `integration` modules run after prerequisites such as `apps/web/dist`; platform/release-only and legacy pytest-style coverage remain explicitly classified rather than silently omitted.
 
 Each CI job writes an agent handoff to the GitHub job summary with gate outcomes, local reproduction commands, the likely subsystem to inspect first, and artifact names where relevant. Playwright remains single-worker with zero retries so a green run cannot be created by retrying dirty shared state.
 
-- Catalog: `e2e/catalog/README.md`
+- Catalog: `apps/web/e2e/catalog/README.md`
 - Headless local runtime: `python tools/run_e2e.py` (or `.aurea-build-venv\Scripts\python.exe tools\run_e2e.py`)
 - On request (visual + sandbox): use the project skill `.cursor/skills/aurea-e2e/`
 - Never run local E2E against `%LOCALAPPDATA%\Aurea Solaris\data`

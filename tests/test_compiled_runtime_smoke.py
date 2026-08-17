@@ -1,6 +1,6 @@
 """Compiled Chrome runtime smoke test.
 
-Starts main_api.py as a real subprocess against the compiled dist/ frontend and
+Starts main_api.py as a real subprocess against the compiled apps/web/dist/ frontend and
 exercises the browser bridge with anonymous data only.
 """
 
@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DIST_INDEX = REPO_ROOT / "dist" / "index.html"
+DIST_INDEX = REPO_ROOT / "apps" / "web" / "dist" / "index.html"
 MAIN_API = REPO_ROOT / "main_api.py"
 HEALTH_POLL_INTERVAL = 0.5
 HEALTH_POLL_TIMEOUT = 60.0
@@ -82,7 +82,7 @@ def _require_compiled_frontend() -> None:
     if DIST_INDEX.is_file():
         return
     raise RuntimeError(
-        "dist/index.html is missing. Run `npm run build` from the repository root before "
+        "apps/web/dist/index.html is missing. Run `npm run build` from the repository root before "
         "running tests.test_compiled_runtime_smoke."
     )
 

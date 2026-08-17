@@ -1,5 +1,5 @@
 # build_sidecar.spec — PyInstaller spec para o sidecar
-# Antes de executar este arquivo, rode `npm run build` para gerar `dist/index.html`.
+# Antes de executar este arquivo, rode `npm run build` para gerar `apps/web/dist/index.html`.
 # Depois: pyinstaller build_sidecar.spec
 #
 # Gera um executável standalone do FastAPI sidecar (main_api.py + astro_engine.py)
@@ -22,7 +22,7 @@ if os.path.isdir('ephe'):
 elif os.path.isdir(ephe_path):
     ephe_datas = [(ephe_path, 'ephe')]
 
-frontend_datas = [('dist', 'dist')]
+frontend_datas = [('apps/web/dist', 'apps/web/dist')]
 
 a = Analysis(
     ['main_api.py'],

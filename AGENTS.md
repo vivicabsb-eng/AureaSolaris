@@ -59,15 +59,15 @@ Pesquisa externa só ocorre dentro dos filtros de fontes configurados e com tran
 
 | Área | Pontos de entrada |
 | --- | --- |
-| Composição React | `src/app/AppProviders.tsx`, `src/App.tsx` |
-| Interface/componentes | `src/components/` |
-| Identidade, perfis e mapas | `src/features/identity/` |
-| Agenda, tarefas, eventos e calendário | `src/features/agenda/` |
-| Preferências/helpers de astrologia | `src/features/astrology/` |
-| Estado frontend de documentos de saúde | `src/features/health/` |
-| Workflows Hermes entre features | `src/app/workflows/` |
-| Compatibilidade legada de contexts | `src/context/` — não adicionar novo estado de feature ao `AgendaContext` |
-| Caderno/Mesa | `src/components/MesaCriacao.tsx`, `src/components/DiarioView.tsx` |
+| Composição React | `apps/web/src/app/AppProviders.tsx`, `apps/web/src/App.tsx` |
+| Interface/componentes | `apps/web/src/components/` |
+| Identidade, perfis e mapas | `apps/web/src/features/identity/` |
+| Agenda, tarefas, eventos e calendário | `apps/web/src/features/agenda/` |
+| Preferências/helpers de astrologia | `apps/web/src/features/astrology/` |
+| Estado frontend de documentos de saúde | `apps/web/src/features/health/` |
+| Workflows Hermes entre features | `apps/web/src/app/workflows/` |
+| Compatibilidade legada de contexts | `apps/web/src/context/` — não adicionar novo estado de feature ao `AgendaContext` |
+| Caderno/Mesa | `apps/web/src/components/MesaCriacao.tsx`, `apps/web/src/components/DiarioView.tsx` |
 | Motor e API local | `astro_engine.py`, `main_api.py` |
 | Desktop/Rust | `src-tauri/src/lib.rs`, `src-tauri/tauri.conf.json` |
 | Migrações de dados | `src-tauri/migrations/knowledge/`, `src-tauri/migrations/private/` |

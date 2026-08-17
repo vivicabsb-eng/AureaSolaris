@@ -8,7 +8,7 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $venvPython = Join-Path $projectRoot '.aurea-build-venv\Scripts\python.exe'
 $packagedRuntime = Join-Path $projectRoot 'src-tauri\binaries\astro-engine-x86_64-pc-windows-msvc.exe'
-$distIndex = Join-Path $projectRoot 'dist\index.html'
+$distIndex = Join-Path $projectRoot 'apps\web\dist\index.html'
 
 if ($Reset -and -not $TestUser) {
     throw '-Reset so funciona com -TestUser'

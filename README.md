@@ -5,7 +5,7 @@ Aurea Solaris is a local-first application for astrological study, personal orga
 ## Start Aurea in Chrome
 
 On Windows, double-click [`launch_chrome.bat`](launch_chrome.bat). It starts
-the local FastAPI runtime, serves the compiled frontend from `dist/`, and opens
+the local FastAPI runtime, serves the compiled frontend from `apps/web/dist/`, and opens
 Chrome. Vite is not used during normal startup. If the compiled frontend is
 missing in a source checkout, the launcher builds it once; after that, Node.js
 is not needed to open the app.
@@ -46,10 +46,10 @@ Do not read the entire `docs/` tree by default. Use only the current domain docu
 
 | Area | Entry points |
 |---|---|
-| React interface | `src/App.tsx`, `src/components/`, `src/context/` |
-| Caderno Vivo/journal | `src/components/MesaCriacao.tsx`, `src/components/DiarioView.tsx` |
+| React interface | `apps/web/src/App.tsx`, `apps/web/src/components/`, `apps/web/src/context/` |
+| Caderno Vivo/journal | `apps/web/src/components/MesaCriacao.tsx`, `apps/web/src/components/DiarioView.tsx` |
 | Astrology engine/API | `astro_engine.py`, `main_api.py` |
-| Chrome/local runtime | `vite.config.ts`, `main_api.py`, `launch_chrome.bat` |
+| Chrome/local runtime | `apps/web/vite.config.ts`, `main_api.py`, `launch_chrome.bat` |
 | Tauri/native compatibility | `src-tauri/src/lib.rs`, `src-tauri/tauri.conf.json` |
 | Data migrations | `src-tauri/migrations/knowledge/`, `src-tauri/migrations/private/` |
 | Editorial corpus | `knowledge/engenharia_astrologica/` |

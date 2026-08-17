@@ -157,14 +157,14 @@ class TestBrowserRuntime(unittest.TestCase):
         spec_source = (repository_root / "build_sidecar.spec").read_text(encoding="utf-8")
         api_source = (repository_root / "main_api.py").read_text(encoding="utf-8")
 
-        self.assertRegex(spec_source, r"(?m)^frontend_datas = \[\('dist', 'dist'\)\]\s*$")
+        self.assertRegex(spec_source, r"(?m)^frontend_datas = \[\('apps/web/dist', 'apps/web/dist'\)\]\s*$")
         health_route = api_source.index('@app.get("/health")')
         frontend_mount = api_source.index('app.mount("/", StaticFiles')
         self.assertLess(health_route, frontend_mount)
 
     def test_login_logo_uses_vite_asset_import_and_smoke_checks_real_landmarks(self):
         repository_root = Path(__file__).resolve().parents[1]
-        login_source = (repository_root / "src" / "components" / "LoginView.tsx").read_text(encoding="utf-8")
+        login_source = (repository_root / "apps" / "web" / "src" / "components" / "LoginView.tsx").read_text(encoding="utf-8")
         smoke_source = (repository_root / "tests" / "browser_runtime_smoke.ps1").read_text(encoding="utf-8")
 
         self.assertIn("import aureaSymbol from '../assets/brand/logo/aurea-symbol.svg';", login_source)

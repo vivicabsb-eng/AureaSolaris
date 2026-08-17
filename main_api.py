@@ -1192,7 +1192,7 @@ async def chat_stream(req: ChatRequest):
 # The Chrome-first launcher uses the production frontend from the same
 # loopback origin. Keeping this mount after all API routes prevents the SPA
 # fallback from shadowing /health, /openapi.json, and the local API contract.
-_FRONTEND_DIST = Path(__file__).resolve().parent / "dist"
+_FRONTEND_DIST = Path(__file__).resolve().parent / "apps" / "web" / "dist"
 if _FRONTEND_DIST.is_dir() and (_FRONTEND_DIST / "index.html").is_file():
     app.mount("/", StaticFiles(directory=_FRONTEND_DIST, html=True), name="frontend")
 

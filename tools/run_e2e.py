@@ -100,10 +100,10 @@ def ensure_frontend_ready(*, skip_build: bool) -> None:
         ensure_frontend_built()
         return
 
-    dist_index = REPO_ROOT / "dist" / "index.html"
+    dist_index = REPO_ROOT / "apps" / "web" / "dist" / "index.html"
     if not dist_index.is_file():
         raise RuntimeError(
-            "--skip-build requires an existing dist/index.html. "
+            "--skip-build requires an existing apps/web/dist/index.html. "
             "Run `npm run build` first or omit --skip-build."
         )
 
@@ -112,7 +112,7 @@ def run_playwright(base_url: str) -> int:
     env = os.environ.copy()
     env["AUREA_E2E_URL"] = base_url
     completed = subprocess.run(
-        [resolve_node_command("npx"), "playwright", "test", "--config=e2e/playwright.config.ts"],
+        [resolve_node_command("npx"), "playwright", "test", "--config=apps/web/e2e/playwright.config.ts"],
         cwd=REPO_ROOT,
         env=env,
     )
@@ -126,7 +126,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--skip-build",
         action="store_true",
-        help="Reuse an existing dist/ build instead of rebuilding the frontend.",
+        help="Reuse an existing apps/web/dist/ build instead of rebuilding the frontend.",
     )
     args = parser.parse_args(argv)
 

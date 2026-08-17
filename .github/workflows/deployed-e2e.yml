@@ -126,7 +126,7 @@ jobs:
         working-directory: trusted-harness
         env:
           AUREA_E2E_URL: ${{ steps.target.outputs.url }}
-        run: npx playwright test deployed-smoke.spec.ts --config=e2e/playwright.config.ts
+        run: npx playwright test deployed-smoke.spec.ts --config=apps/web/e2e/playwright.config.ts
 
       - name: Upload deployed Playwright artifacts
         id: artifacts
@@ -135,8 +135,8 @@ jobs:
         with:
           name: deployed-playwright-artifacts-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
-            trusted-harness/e2e/playwright-report/
-            trusted-harness/e2e/test-results/
+            trusted-harness/apps/web/e2e/playwright-report/
+            trusted-harness/apps/web/e2e/test-results/
           if-no-files-found: ignore
           retention-days: 7
 
@@ -168,7 +168,7 @@ jobs:
             echo "### Reproduce with the same trusted harness"
             echo '```bash'
             echo "git checkout '${{ steps.harness.outputs.sha }}'"
-            echo "AUREA_E2E_URL='${{ steps.target.outputs.url }}' npx playwright test deployed-smoke.spec.ts --config=e2e/playwright.config.ts"
+            echo "AUREA_E2E_URL='${{ steps.target.outputs.url }}' npx playwright test deployed-smoke.spec.ts --config=apps/web/e2e/playwright.config.ts"
             echo '```'
             echo
             if [ "${{ steps.target.outcome }}" = "failure" ]; then

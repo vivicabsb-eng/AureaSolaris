@@ -72,14 +72,14 @@ class TestRunE2EHelpers(unittest.TestCase):
     def test_frontend_ready_skip_build_requires_dist_index(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             with patch.object(run_e2e, "REPO_ROOT", Path(tmp)):
-                with self.assertRaisesRegex(RuntimeError, r"dist/index\.html"):
+                with self.assertRaisesRegex(RuntimeError, r"apps/web/dist/index\.html"):
                     run_e2e.ensure_frontend_ready(skip_build=True)
 
     def test_frontend_ready_skip_build_reuses_existing_dist(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            (root / "dist").mkdir()
-            (root / "dist" / "index.html").write_text("ok", encoding="utf-8")
+            (root / "apps" / "web" / "dist").mkdir(parents=True)
+            (root / "apps" / "web" / "dist" / "index.html").write_text("ok", encoding="utf-8")
             with patch.object(run_e2e, "REPO_ROOT", root):
                 with patch.object(run_e2e, "ensure_frontend_built") as build:
                     run_e2e.ensure_frontend_ready(skip_build=True)
