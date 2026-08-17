@@ -159,11 +159,6 @@ def test_birth_profile_update_serializes_decimal_and_time_deterministically() ->
 
 
 def test_update_contract_field_names_are_stable() -> None:
-    profile = ProfileUpdate(
-        display_name="Fernando", timezone="America/Sao_Paulo", locale="pt-BR"
-    )
-    birth = _birth_update()
-
     assert tuple(ProfileUpdate.model_fields) == ("display_name", "timezone", "locale")
     assert tuple(BirthProfileUpdate.model_fields) == (
         "label",
