@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(40);
+select plan(41);
 
 -- Tables and exact V1 columns.
 select has_table('public', 'profiles', 'profiles table exists');
@@ -148,6 +148,14 @@ select is((select count(*)::integer from pg_constraint where conname = 'calculat
 
 select is((select count(*)::integer from pg_indexes where schemaname = 'public' and tablename = 'birth_profiles' and indexname = 'birth_profiles_user_id_idx'), 1, 'birth profile owner index exists');
 select is((select count(*)::integer from pg_indexes where schemaname = 'public' and tablename = 'birth_profiles' and indexname = 'birth_profiles_one_active_per_user_idx'), 1, 'only one active birth profile index exists');
+select is(
+  (select indexdef from pg_indexes
+   where schemaname = 'public'
+     and tablename = 'calculation_receipts'
+     and indexname = 'calculation_receipts_birth_profile_id_idx'),
+  'CREATE INDEX calculation_receipts_birth_profile_id_idx ON public.calculation_receipts USING btree (birth_profile_id)',
+  'receipt birth-profile index covers calculation_receipts.birth_profile_id'
+);
 select is((select count(*)::integer from pg_indexes where schemaname = 'public' and tablename = 'calculation_receipts' and indexname = 'calculation_receipts_user_created_at_idx'), 1, 'receipt owner/recency index exists');
 
 -- RLS and owner policies are installed on every private table.
