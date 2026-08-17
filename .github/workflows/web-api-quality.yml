@@ -41,13 +41,14 @@ jobs:
         id: install
         run: python -m pip install -e "./services/api[dev]"
 
-      - name: Targeted health, error, and auth tests
+      - name: Targeted health, error, auth, and profile route tests
         id: targeted-tests
         run: >-
           python -m pytest
           services/api/tests/test_health.py
           services/api/tests/test_errors.py
           services/api/tests/test_auth.py
+          services/api/tests/test_profile_routes.py
           -q
 
       - name: Full Web API tests
@@ -72,7 +73,7 @@ jobs:
             echo "| Gate | Outcome |"
             echo "|---|---|"
             echo "| dependency install | ${{ steps.install.outcome }} |"
-            echo "| targeted health/error/auth pytest | ${{ steps.targeted-tests.outcome }} |"
+            echo "| targeted health/error/auth/profile-route pytest | ${{ steps.targeted-tests.outcome }} |"
             echo "| full API pytest | ${{ steps.tests.outcome }} |"
             echo "| Ruff | ${{ steps.ruff.outcome }} |"
             echo "| mypy (services/api config) | ${{ steps.mypy.outcome }} |"
@@ -80,7 +81,7 @@ jobs:
             echo "### Reproduce from repository root"
             echo '```bash'
             echo 'python -m pip install -e "./services/api[dev]"'
-            echo 'python -m pytest services/api/tests/test_health.py services/api/tests/test_errors.py services/api/tests/test_auth.py -q'
+            echo 'python -m pytest services/api/tests/test_health.py services/api/tests/test_errors.py services/api/tests/test_auth.py services/api/tests/test_profile_routes.py -q'
             echo 'python -m pytest services/api/tests -q'
             echo 'python -m ruff check services/api'
             echo 'python -m mypy --config-file services/api/pyproject.toml services/api/src'
