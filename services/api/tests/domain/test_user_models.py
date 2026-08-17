@@ -44,6 +44,16 @@ def test_profile_update_validates_real_timezone_without_system_tzpath() -> None:
     assert model.timezone == "America/Sao_Paulo"
 
 
+@pytest.mark.parametrize("timezone", ["localtime", "posixrules"])
+def test_profile_update_rejects_host_only_timezone_keys(timezone: str) -> None:
+    with pytest.raises(ValidationError):
+        ProfileUpdate(
+            display_name="Fernando",
+            timezone=timezone,
+            locale="pt-BR",
+        )
+
+
 @pytest.mark.parametrize(
     ("field", "value"),
     [
