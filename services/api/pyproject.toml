@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "Private FastAPI service for Aurea Solaris Web V1"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+  "asyncpg==0.31.0",
   "fastapi==0.115.12",
   "pydantic==2.11.3",
   "PyJWT[crypto]==2.13.0",
