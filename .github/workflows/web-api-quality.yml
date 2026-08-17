@@ -1,0 +1,77 @@
+name: Web API Quality
+
+on:
+  pull_request:
+    paths:
+      - "services/api/**"
+      - ".env.example"
+      - ".gitignore"
+      - ".github/workflows/web-api-quality.yml"
+  push:
+    branches: [main]
+    paths:
+      - "services/api/**"
+      - ".env.example"
+      - ".gitignore"
+      - ".github/workflows/web-api-quality.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-api-quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web-api-quality:
+    name: Web API Quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: services/api/pyproject.toml
+
+      - name: Install Web API dependencies
+        id: install
+        run: python -m pip install -e "./services/api[dev]"
+
+      - name: Focused config tests
+        id: tests
+        run: python -m pytest services/api/tests/test_config.py -q
+
+      - name: Ruff
+        id: ruff
+        run: python -m ruff check services/api
+
+      - name: Mypy with service configuration
+        id: mypy
+        run: python -m mypy --config-file services/api/pyproject.toml services/api/src
+
+      - name: Agent handoff summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Web API Quality"
+            echo
+            echo "| Gate | Outcome |"
+            echo "|---|---|"
+            echo "| dependency install | ${{ steps.install.outcome }} |"
+            echo "| focused pytest | ${{ steps.tests.outcome }} |"
+            echo "| Ruff | ${{ steps.ruff.outcome }} |"
+            echo "| mypy (services/api config) | ${{ steps.mypy.outcome }} |"
+            echo
+            echo "### Reproduce from repository root"
+            echo '```bash'
+            echo 'python -m pip install -e "./services/api[dev]"'
+            echo 'python -m pytest services/api/tests/test_config.py -q'
+            echo 'python -m ruff check services/api'
+            echo 'python -m mypy --config-file services/api/pyproject.toml services/api/src'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

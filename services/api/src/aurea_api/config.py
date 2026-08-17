@@ -11,8 +11,10 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    PostgresDsn,
     SecretStr,
     TypeAdapter,
+    ValidationError,
     field_validator,
 )
 
@@ -25,12 +27,13 @@ _ENVIRONMENT_FIELDS = (
     ("ephemeris_path", "AUREA_EPHEMERIS_PATH"),
 )
 _HTTP_URL = TypeAdapter(AnyHttpUrl)
+_POSTGRES_DSN = TypeAdapter(PostgresDsn)
 
 
 class Settings(BaseModel):
     """Validated server-side configuration for the web API."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, hide_input_in_errors=True)
 
     environment: str = Field(min_length=1)
     supabase_url: AnyHttpUrl
@@ -38,6 +41,15 @@ class Settings(BaseModel):
     database_url: SecretStr = Field(min_length=1)
     allowed_origins: tuple[str, ...] = Field(min_length=1)
     ephemeris_path: Path
+
+    @field_validator("database_url")
+    @classmethod
+    def _validate_database_url(cls, value: SecretStr) -> SecretStr:
+        try:
+            _POSTGRES_DSN.validate_python(value.get_secret_value())
+        except ValidationError:
+            raise ValueError("database URL must be a valid PostgreSQL DSN") from None
+        return value
 
     @field_validator("allowed_origins", mode="before")
     @classmethod

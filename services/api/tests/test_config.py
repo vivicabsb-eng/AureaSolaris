@@ -50,6 +50,35 @@ def test_settings_reject_blank_database_secret() -> None:
         Settings.from_env(environment)
 
 
+@pytest.mark.parametrize(
+    "database_url",
+    [
+        "https://db.example.test/aurea",
+        "postgresql://",
+    ],
+)
+def test_settings_reject_invalid_database_urls(database_url: str) -> None:
+    environment = valid_environment()
+    environment["AUREA_DATABASE_URL"] = database_url
+
+    with pytest.raises(ValidationError):
+        Settings.from_env(environment)
+
+
+def test_invalid_database_url_error_does_not_expose_secret() -> None:
+    environment = valid_environment()
+    secret_marker = "review-secret-marker"
+    database_url = f"https://aurea:{secret_marker}@db.example.test/aurea"
+    environment["AUREA_DATABASE_URL"] = database_url
+
+    with pytest.raises(ValidationError) as exc_info:
+        Settings.from_env(environment)
+
+    error = str(exc_info.value)
+    assert database_url not in error
+    assert secret_marker not in error
+
+
 def test_settings_parse_allowed_origins_without_changing_values() -> None:
     settings = Settings.from_env(valid_environment())
 
