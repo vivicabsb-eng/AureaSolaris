@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+from dataclasses import replace
 from datetime import UTC, date, datetime, time
 from decimal import Decimal
 from uuid import UUID, uuid4
@@ -257,6 +258,37 @@ def test_receipt_repository_is_owner_scoped_unique_and_safe_on_constraints(
                 )
             assert exact_count == 1
             assert rejected_count == 0
+        finally:
+            await _delete_users(pool, user_a, user_b)
+            await pool.close()
+
+    asyncio.run(contract())
+
+
+def test_receipt_repository_rejects_boolean_number_json_retry(
+    test_database_url: SecretStr,
+) -> None:
+    async def contract() -> None:
+        pool = await create_database_pool(test_database_url)
+        user_a, user_b = uuid4(), uuid4()
+        try:
+            await _seed_users(pool, user_a, user_b)
+            births = BirthProfileRepository(pool)
+            receipts = ReceiptRepository(pool)
+            birth = await births.upsert(user_a, _birth("Owner A Birth"))
+            input_hash = "c" * 64
+            boolean_write = replace(
+                _receipt(birth.id, input_hash=input_hash, result="same"),
+                input_payload={"value": True},
+            )
+
+            await receipts.store(user_a, boolean_write)
+
+            with pytest.raises(ReceiptConflictError):
+                await receipts.store(
+                    user_a,
+                    replace(boolean_write, input_payload={"value": 1}),
+                )
         finally:
             await _delete_users(pool, user_a, user_b)
             await pool.close()
