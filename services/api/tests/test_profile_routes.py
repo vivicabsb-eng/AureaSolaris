@@ -12,7 +12,7 @@ from fastapi.testclient import TestClient
 from jwt import PyJWK
 from jwt.algorithms import RSAAlgorithm
 
-from aurea_api.api.auth import AuthenticatedUser, TokenVerifier
+from aurea_api.api.auth import TokenVerifier
 from aurea_api.config import Settings
 from aurea_api.domain.users.models import (
     BirthProfileResponse,
@@ -217,9 +217,7 @@ def test_profile_put_creates_and_updates_authenticated_owner(
 ) -> None:
     with TestClient(route_harness.app) as client:
         created = client.put(
-            "/v1/me/profile",
-            headers=route_harness.headers_a,
-            json=_profile_payload(),
+            "/v1/me/profile", headers=route_harness.headers_a, json=_profile_payload()
         )
         fetched = client.get("/v1/me", headers=route_harness.headers_a)
         updated = client.put(
@@ -234,10 +232,8 @@ def test_profile_put_creates_and_updates_authenticated_owner(
     assert fetched.json()["id"] == created.json()["id"]
     assert updated.json()["id"] == created.json()["id"]
     assert updated.json()["display_name"] == "Owner A Updated"
-    assert route_harness.profiles.upsert_owner_ids == [
-        route_harness.user_a,
-        route_harness.user_a,
-    ]
+    assert "user_id" not in updated.json()
+    assert route_harness.profiles.upsert_owner_ids == [route_harness.user_a] * 2
 
 
 def test_birth_profile_put_creates_and_updates_authenticated_owner(
@@ -263,29 +259,15 @@ def test_birth_profile_put_creates_and_updates_authenticated_owner(
     assert updated.json()["id"] == created.json()["id"]
     assert updated.json()["label"] == "Owner A Birth Updated"
     assert updated.json()["is_active"] is True
-    assert route_harness.birth_profiles.upsert_owner_ids == [
-        route_harness.user_a,
-        route_harness.user_a,
-    ]
+    assert "user_id" not in updated.json()
+    assert route_harness.birth_profiles.upsert_owner_ids == [route_harness.user_a] * 2
 
 
 @pytest.mark.parametrize(
     ("path", "payload"),
     [
-        (
-            "/v1/me/profile",
-            {
-                **_profile_payload(),
-                "timezone": "Not/A-Timezone",
-            },
-        ),
-        (
-            "/v1/birth-profile",
-            {
-                **_birth_profile_payload(),
-                "latitude": "91.000000",
-            },
-        ),
+        ("/v1/me/profile", {**_profile_payload(), "timezone": "Not/A-Timezone"}),
+        ("/v1/birth-profile", {**_birth_profile_payload(), "latitude": "91.000000"}),
     ],
 )
 def test_route_payloads_use_typed_field_validation(
@@ -305,10 +287,7 @@ def test_route_payloads_use_typed_field_validation(
     [
         (
             "/v1/me/profile",
-            {
-                **_profile_payload(),
-                "user_id": "00000000-0000-0000-0000-000000000001",
-            },
+            {**_profile_payload(), "user_id": "00000000-0000-0000-0000-000000000001"},
         ),
         (
             "/v1/birth-profile",
@@ -329,18 +308,14 @@ def test_user_id_is_not_editable_from_request_data(
 
     assert response.status_code == 422
     assert response.json()["code"] == "validation_error"
-    assert route_harness.user_a not in route_harness.profiles.records
-    assert route_harness.user_a not in route_harness.birth_profiles.records
+    assert route_harness.profiles.upsert_owner_ids == []
+    assert route_harness.birth_profiles.upsert_owner_ids == []
 
 
-def test_user_b_cannot_observe_user_a_profile_records(
-    route_harness: RouteHarness,
-) -> None:
+def test_user_b_cannot_observe_user_a_records(route_harness: RouteHarness) -> None:
     with TestClient(route_harness.app) as client:
         profile_created = client.put(
-            "/v1/me/profile",
-            headers=route_harness.headers_a,
-            json=_profile_payload(),
+            "/v1/me/profile", headers=route_harness.headers_a, json=_profile_payload()
         )
         birth_created = client.put(
             "/v1/birth-profile",
