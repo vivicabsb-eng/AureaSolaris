@@ -2,7 +2,11 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(41);
+\set fdm704_include_helpers true
+\ir helpers.sql
+\unset fdm704_include_helpers
+
+select plan(64);
 
 -- Tables and exact V1 columns.
 select has_table('public', 'profiles', 'profiles table exists');
@@ -308,6 +312,263 @@ select ok(
   (select updated_at > '2000-01-02T00:00:00Z'::timestamptz from public.birth_profiles where id = '20000000-0000-0000-0000-000000000703'::uuid),
   'birth_profiles update trigger advances updated_at'
 );
+
+-- FDM-704: prove owner isolation with two authenticated identities.
+insert into auth.users (id) values
+  ('00000000-0000-0000-0000-000000000704'::uuid),
+  ('00000000-0000-0000-0000-000000000705'::uuid);
+
+insert into public.profiles (id, user_id, display_name, timezone, locale) values
+  (
+    '10000000-0000-0000-0000-000000000704'::uuid,
+    '00000000-0000-0000-0000-000000000704'::uuid,
+    'Isolation A',
+    'America/Sao_Paulo',
+    'pt-BR'
+  ),
+  (
+    '10000000-0000-0000-0000-000000000705'::uuid,
+    '00000000-0000-0000-0000-000000000705'::uuid,
+    'Isolation B',
+    'America/Sao_Paulo',
+    'pt-BR'
+  );
+
+insert into public.birth_profiles (
+  id, user_id, label, birth_date, birth_time, timezone, latitude, longitude, place, house_system, is_active
+) values
+  (
+    '20000000-0000-0000-0000-000000000704'::uuid,
+    '00000000-0000-0000-0000-000000000704'::uuid,
+    'Isolation A Birth',
+    date '1991-01-01',
+    time '10:00:00',
+    'America/Sao_Paulo',
+    -23.550520,
+    -46.633308,
+    'Test Place A',
+    'P',
+    true
+  ),
+  (
+    '20000000-0000-0000-0000-000000000705'::uuid,
+    '00000000-0000-0000-0000-000000000705'::uuid,
+    'Isolation B Birth',
+    date '1992-02-02',
+    time '11:00:00',
+    'America/Sao_Paulo',
+    -15.793889,
+    -47.882778,
+    'Test Place B',
+    'P',
+    true
+  );
+
+insert into public.calculation_receipts (
+  id, user_id, birth_profile_id, kind, input_hash, input_payload, result_payload,
+  engine_name, engine_version, ephemeris_version, resolved_at, resolved_timezone
+) values
+  (
+    '30000000-0000-0000-0000-000000000704'::uuid,
+    '00000000-0000-0000-0000-000000000704'::uuid,
+    '20000000-0000-0000-0000-000000000704'::uuid,
+    'natal', repeat('c', 64), '{"owner":"A"}'::jsonb, '{"owner":"A"}'::jsonb,
+    'aurea', '1', 'test', '2026-08-17T12:00:00Z', 'America/Sao_Paulo'
+  ),
+  (
+    '30000000-0000-0000-0000-000000000705'::uuid,
+    '00000000-0000-0000-0000-000000000705'::uuid,
+    '20000000-0000-0000-0000-000000000705'::uuid,
+    'natal', repeat('d', 64), '{"owner":"B"}'::jsonb, '{"owner":"B"}'::jsonb,
+    'aurea', '1', 'test', '2026-08-17T12:00:00Z', 'America/Sao_Paulo'
+  );
+
+select test_helpers.set_request_jwt_claims('00000000-0000-0000-0000-000000000704'::uuid);
+select is(
+  auth.uid(),
+  '00000000-0000-0000-0000-000000000704'::uuid,
+  'JWT helper exposes subject A through auth.uid()'
+);
+set local role authenticated;
+
+select is((select count(*)::integer from public.profiles), 1, 'subject A sees only its profile');
+select is((select count(*)::integer from public.birth_profiles), 1, 'subject A sees only its birth profile');
+select is((select count(*)::integer from public.calculation_receipts), 1, 'subject A sees only its receipt');
+
+select is(
+  test_helpers.exec_row_count($sql$
+    update public.profiles
+    set display_name = 'Isolation A Updated'
+    where id = '10000000-0000-0000-0000-000000000704'::uuid
+  $sql$),
+  1,
+  'subject A may update its profile'
+);
+select is(
+  test_helpers.exec_row_count($sql$
+    update public.birth_profiles
+    set label = 'Isolation A Birth Updated'
+    where id = '20000000-0000-0000-0000-000000000704'::uuid
+  $sql$),
+  1,
+  'subject A may update its birth profile'
+);
+select is(
+  test_helpers.exec_row_count($sql$
+    update public.calculation_receipts
+    set result_payload = '{"owner":"A","updated":true}'::jsonb
+    where id = '30000000-0000-0000-0000-000000000704'::uuid
+  $sql$),
+  1,
+  'subject A may update its receipt'
+);
+
+select is(
+  test_helpers.exec_row_count($sql$
+    update public.profiles
+    set display_name = 'A cannot touch B'
+    where id = '10000000-0000-0000-0000-000000000705'::uuid
+  $sql$),
+  0,
+  'subject A cannot update subject B profile'
+);
+select is(
+  test_helpers.exec_row_count($sql$
+    update public.birth_profiles
+    set label = 'A cannot touch B'
+    where id = '20000000-0000-0000-0000-000000000705'::uuid
+  $sql$),
+  0,
+  'subject A cannot update subject B birth profile'
+);
+select is(
+  test_helpers.exec_row_count($sql$
+    update public.calculation_receipts
+    set result_payload = '{"tampered":true}'::jsonb
+    where id = '30000000-0000-0000-0000-000000000705'::uuid
+  $sql$),
+  0,
+  'subject A cannot update subject B receipt'
+);
+
+select throws_ok(
+  $$
+    insert into public.birth_profiles (
+      user_id, label, birth_date, birth_time, timezone, latitude, longitude, place, house_system, is_active
+    ) values (
+      '00000000-0000-0000-0000-000000000705'::uuid,
+      'A cannot create for B',
+      date '1993-03-03',
+      time '12:00:00',
+      'America/Sao_Paulo',
+      0,
+      0,
+      'Forbidden A to B',
+      'P',
+      false
+    )
+  $$,
+  '42501',
+  'new row violates row-level security policy for table "birth_profiles"',
+  'subject A cannot insert a birth profile owned by subject B'
+);
+
+reset role;
+select test_helpers.clear_request_jwt_claims();
+
+select test_helpers.set_request_jwt_claims('00000000-0000-0000-0000-000000000705'::uuid);
+select is(
+  auth.uid(),
+  '00000000-0000-0000-0000-000000000705'::uuid,
+  'JWT helper exposes subject B through auth.uid()'
+);
+set local role authenticated;
+
+select is((select count(*)::integer from public.profiles), 1, 'subject B sees only its profile');
+select is((select count(*)::integer from public.birth_profiles), 1, 'subject B sees only its birth profile');
+select is((select count(*)::integer from public.calculation_receipts), 1, 'subject B sees only its receipt');
+
+select is(
+  test_helpers.exec_row_count($sql$
+    update public.profiles
+    set display_name = 'Isolation B Updated'
+    where id = '10000000-0000-0000-0000-000000000705'::uuid
+  $sql$),
+  1,
+  'subject B may update its profile'
+);
+select is(
+  test_helpers.exec_row_count($sql$
+    update public.birth_profiles
+    set label = 'Isolation B Birth Updated'
+    where id = '20000000-0000-0000-0000-000000000705'::uuid
+  $sql$),
+  1,
+  'subject B may update its birth profile'
+);
+select is(
+  test_helpers.exec_row_count($sql$
+    update public.calculation_receipts
+    set result_payload = '{"owner":"B","updated":true}'::jsonb
+    where id = '30000000-0000-0000-0000-000000000705'::uuid
+  $sql$),
+  1,
+  'subject B may update its receipt'
+);
+
+select is(
+  test_helpers.exec_row_count($sql$
+    update public.profiles
+    set display_name = 'B cannot touch A'
+    where id = '10000000-0000-0000-0000-000000000704'::uuid
+  $sql$),
+  0,
+  'subject B cannot update subject A profile'
+);
+select is(
+  test_helpers.exec_row_count($sql$
+    update public.birth_profiles
+    set label = 'B cannot touch A'
+    where id = '20000000-0000-0000-0000-000000000704'::uuid
+  $sql$),
+  0,
+  'subject B cannot update subject A birth profile'
+);
+select is(
+  test_helpers.exec_row_count($sql$
+    update public.calculation_receipts
+    set result_payload = '{"tampered":true}'::jsonb
+    where id = '30000000-0000-0000-0000-000000000704'::uuid
+  $sql$),
+  0,
+  'subject B cannot update subject A receipt'
+);
+
+select throws_ok(
+  $$
+    insert into public.birth_profiles (
+      user_id, label, birth_date, birth_time, timezone, latitude, longitude, place, house_system, is_active
+    ) values (
+      '00000000-0000-0000-0000-000000000704'::uuid,
+      'B cannot create for A',
+      date '1994-04-04',
+      time '13:00:00',
+      'America/Sao_Paulo',
+      0,
+      0,
+      'Forbidden B to A',
+      'P',
+      false
+    )
+  $$,
+  '42501',
+  'new row violates row-level security policy for table "birth_profiles"',
+  'subject B cannot insert a birth profile owned by subject A'
+);
+
+reset role;
+select test_helpers.clear_request_jwt_claims();
+select is(auth.uid(), null::uuid, 'JWT helper clears request.jwt.claims between identities');
 
 select * from finish();
 rollback;
