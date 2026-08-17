@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 from uuid import uuid4
+from zoneinfo import ZoneInfo, reset_tzpath
 
 import pytest
 from pydantic import ValidationError
@@ -27,6 +28,22 @@ def test_profile_update_normalizes_display_name_timezone_and_locale() -> None:
     assert model.locale == "pt-BR"
 
 
+def test_profile_update_validates_real_timezone_without_system_tzpath() -> None:
+    ZoneInfo.clear_cache()
+    reset_tzpath(())
+    try:
+        model = ProfileUpdate(
+            display_name="Fernando",
+            timezone="America/Sao_Paulo",
+            locale="pt-BR",
+        )
+    finally:
+        reset_tzpath()
+        ZoneInfo.clear_cache()
+
+    assert model.timezone == "America/Sao_Paulo"
+
+
 @pytest.mark.parametrize(
     ("field", "value"),
     [
@@ -46,6 +63,15 @@ def test_profile_update_rejects_invalid_fields(field: str, value: str) -> None:
 
     with pytest.raises(ValidationError):
         ProfileUpdate.model_validate(payload)
+
+
+def test_profile_update_rejects_nul_in_required_text() -> None:
+    with pytest.raises(ValidationError):
+        ProfileUpdate(
+            display_name="Fernando\x00Dâmaso",
+            timezone="America/Sao_Paulo",
+            locale="pt-BR",
+        )
 
 
 def test_profile_update_rejects_client_supplied_owner_identity() -> None:
@@ -109,6 +135,11 @@ def test_birth_profile_update_rejects_invalid_text_and_house_system(
         _birth_update(**{field: value})
 
 
+def test_birth_profile_update_rejects_nul_in_required_text() -> None:
+    with pytest.raises(ValidationError):
+        _birth_update(place="Brasília\x00DF")
+
+
 @pytest.mark.parametrize(
     ("latitude", "longitude"),
     [
@@ -156,6 +187,17 @@ def test_birth_profile_update_serializes_decimal_and_time_deterministically() ->
     assert payload["birth_time"] == "01:02:03"
     assert payload["latitude"] == "0.000000"
     assert payload["longitude"] == "47.880000"
+
+
+def test_birth_profile_update_serializes_negative_zero_coordinates_canonically() -> None:
+    model = _birth_update(latitude=Decimal("-0"), longitude=Decimal("-0.000000"))
+
+    payload = model.model_dump(mode="json")
+
+    assert payload["latitude"] == "0.000000"
+    assert payload["longitude"] == "0.000000"
+    assert not model.latitude.is_signed()
+    assert not model.longitude.is_signed()
 
 
 def test_update_contract_field_names_are_stable() -> None:
