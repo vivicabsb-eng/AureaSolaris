@@ -98,6 +98,10 @@ def _decode_json_object(value: object) -> dict[str, object]:
     return cast(dict[str, object], decoded)
 
 
+def _json_objects_equal(left: dict[str, object], right: dict[str, object]) -> bool:
+    return _encode_json_object(left) == _encode_json_object(right)
+
+
 def _row_to_receipt(row: asyncpg.Record) -> CalculationReceiptRecord:
     return CalculationReceiptRecord(
         id=row["id"],
@@ -122,8 +126,8 @@ def _matches_write(record: CalculationReceiptRecord, value: CalculationReceiptWr
         and record.kind == value.kind
         and record.input_hash == value.input_hash
         and record.schema_version == value.schema_version
-        and record.input_payload == value.input_payload
-        and record.result_payload == value.result_payload
+        and _json_objects_equal(record.input_payload, value.input_payload)
+        and _json_objects_equal(record.result_payload, value.result_payload)
         and record.engine_name == value.engine_name
         and record.engine_version == value.engine_version
         and record.ephemeris_version == value.ephemeris_version
