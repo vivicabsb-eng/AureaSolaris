@@ -4,7 +4,7 @@ The Web V1 API package targets Python 3.12. Install and validate it from the rep
 
 ```bash
 python -m pip install -e "./services/api[dev]"
-python -m pytest services/api/tests/test_health.py services/api/tests/test_errors.py services/api/tests/test_auth.py -q
+python -m pytest services/api/tests/test_health.py services/api/tests/test_errors.py services/api/tests/test_auth.py services/api/tests/test_profile_routes.py -q
 python -m pytest services/api/tests -q
 python -m ruff check services/api
 python -m mypy --config-file services/api/pyproject.toml services/api/src
