@@ -6,7 +6,7 @@ create extension if not exists pgtap with schema extensions;
 \ir helpers.sql
 \unset fdm704_include_helpers
 
-select plan(64);
+select plan(68);
 
 -- Tables and exact V1 columns.
 select has_table('public', 'profiles', 'profiles table exists');
@@ -318,6 +318,48 @@ insert into auth.users (id) values
   ('00000000-0000-0000-0000-000000000704'::uuid),
   ('00000000-0000-0000-0000-000000000705'::uuid);
 
+-- Exercise profiles WITH CHECK before either identity has a profile, so the
+-- candidate rows are otherwise valid and cannot fail on profiles_user_id_key.
+select test_helpers.set_request_jwt_claims('00000000-0000-0000-0000-000000000704'::uuid);
+set local role authenticated;
+select throws_ok(
+  $$
+    insert into public.profiles (id, user_id, display_name, timezone, locale)
+    values (
+      '11000000-0000-0000-0000-000000000705'::uuid,
+      '00000000-0000-0000-0000-000000000705'::uuid,
+      'Forbidden A to B',
+      'America/Sao_Paulo',
+      'pt-BR'
+    )
+  $$,
+  '42501',
+  'new row violates row-level security policy for table "profiles"',
+  'subject A cannot insert a profile owned by subject B'
+);
+reset role;
+select test_helpers.clear_request_jwt_claims();
+
+select test_helpers.set_request_jwt_claims('00000000-0000-0000-0000-000000000705'::uuid);
+set local role authenticated;
+select throws_ok(
+  $$
+    insert into public.profiles (id, user_id, display_name, timezone, locale)
+    values (
+      '11000000-0000-0000-0000-000000000704'::uuid,
+      '00000000-0000-0000-0000-000000000704'::uuid,
+      'Forbidden B to A',
+      'America/Sao_Paulo',
+      'pt-BR'
+    )
+  $$,
+  '42501',
+  'new row violates row-level security policy for table "profiles"',
+  'subject B cannot insert a profile owned by subject A'
+);
+reset role;
+select test_helpers.clear_request_jwt_claims();
+
 insert into public.profiles (id, user_id, display_name, timezone, locale) values
   (
     '10000000-0000-0000-0000-000000000704'::uuid,
@@ -473,6 +515,24 @@ select throws_ok(
   'subject A cannot insert a birth profile owned by subject B'
 );
 
+select throws_ok(
+  $$
+    insert into public.calculation_receipts (
+      id, user_id, birth_profile_id, kind, input_hash, input_payload, result_payload,
+      engine_name, engine_version, ephemeris_version, resolved_at, resolved_timezone
+    ) values (
+      '31000000-0000-0000-0000-000000000705'::uuid,
+      '00000000-0000-0000-0000-000000000705'::uuid,
+      '20000000-0000-0000-0000-000000000705'::uuid,
+      'transit', repeat('e', 64), '{"owner":"B","attempted_by":"A"}'::jsonb, '{}'::jsonb,
+      'aurea', '1', 'test', '2026-08-17T13:00:00Z', 'America/Sao_Paulo'
+    )
+  $$,
+  '42501',
+  'new row violates row-level security policy for table "calculation_receipts"',
+  'subject A cannot insert a receipt owned by subject B'
+);
+
 reset role;
 select test_helpers.clear_request_jwt_claims();
 
@@ -564,6 +624,24 @@ select throws_ok(
   '42501',
   'new row violates row-level security policy for table "birth_profiles"',
   'subject B cannot insert a birth profile owned by subject A'
+);
+
+select throws_ok(
+  $$
+    insert into public.calculation_receipts (
+      id, user_id, birth_profile_id, kind, input_hash, input_payload, result_payload,
+      engine_name, engine_version, ephemeris_version, resolved_at, resolved_timezone
+    ) values (
+      '31000000-0000-0000-0000-000000000704'::uuid,
+      '00000000-0000-0000-0000-000000000704'::uuid,
+      '20000000-0000-0000-0000-000000000704'::uuid,
+      'transit', repeat('f', 64), '{"owner":"A","attempted_by":"B"}'::jsonb, '{}'::jsonb,
+      'aurea', '1', 'test', '2026-08-17T14:00:00Z', 'America/Sao_Paulo'
+    )
+  $$,
+  '42501',
+  'new row violates row-level security policy for table "calculation_receipts"',
+  'subject B cannot insert a receipt owned by subject A'
 );
 
 reset role;
