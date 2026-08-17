@@ -14,11 +14,13 @@ _LOCALE_PATTERN = re.compile(
 
 
 def normalize_required_text(value: str) -> str:
-    """Strip surrounding whitespace and reject empty private-profile text."""
+    """Strip surrounding whitespace and reject unsafe private-profile text."""
 
     normalized = value.strip()
     if not normalized:
         raise ValueError("value must not be blank")
+    if "\x00" in normalized:
+        raise ValueError("value must not contain NUL characters")
     return normalized
 
 
@@ -72,4 +74,5 @@ def normalize_coordinate(value: Decimal) -> Decimal:
 
     if not value.is_finite():
         raise ValueError("coordinate must be finite")
-    return value.quantize(_COORDINATE_QUANTUM)
+    normalized = value.quantize(_COORDINATE_QUANTUM)
+    return normalized.copy_abs() if normalized.is_zero() else normalized
