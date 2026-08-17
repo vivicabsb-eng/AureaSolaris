@@ -3,9 +3,12 @@ from __future__ import annotations
 import re
 from datetime import date, time
 from decimal import Decimal
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+from importlib.resources import files
 
 _COORDINATE_QUANTUM = Decimal("0.000001")
+_IANA_TIMEZONES = frozenset(
+    files("tzdata").joinpath("zones").read_text(encoding="utf-8").splitlines()
+)
 _LOCALE_PATTERN = re.compile(
     r"^(?P<language>[A-Za-z]{2,3})"
     r"(?:-(?P<script>[A-Za-z]{4}))?"
@@ -25,13 +28,11 @@ def normalize_required_text(value: str) -> str:
 
 
 def normalize_iana_timezone(value: str) -> str:
-    """Return a trimmed IANA timezone name or reject unknown zones."""
+    """Return a trimmed timezone name from the pinned IANA tzdata package."""
 
     normalized = normalize_required_text(value)
-    try:
-        ZoneInfo(normalized)
-    except ZoneInfoNotFoundError:
-        raise ValueError("timezone must be a valid IANA timezone") from None
+    if normalized not in _IANA_TIMEZONES:
+        raise ValueError("timezone must be a valid IANA timezone")
     return normalized
 
 
