@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import os
-from datetime import date, datetime, time, timezone
+from datetime import UTC, date, datetime, time
 from decimal import Decimal
 from uuid import UUID, uuid4
 
@@ -80,7 +80,7 @@ def _receipt(birth_profile_id: UUID, *, input_hash: str, result: str) -> Calcula
         engine_name="aurea-test-engine",
         engine_version="1.0.0",
         ephemeris_version="test-ephemeris",
-        resolved_at=datetime(2026, 8, 17, 12, 0, tzinfo=timezone.utc),
+        resolved_at=datetime(2026, 8, 17, 12, 0, tzinfo=UTC),
         resolved_timezone="America/Sao_Paulo",
     )
 
