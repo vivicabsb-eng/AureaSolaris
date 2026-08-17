@@ -69,7 +69,12 @@ class Settings(BaseModel):
 
         for field_name, variable_name in _ENVIRONMENT_FIELDS:
             raw_value = source.get(variable_name)
-            values[field_name] = raw_value if raw_value and raw_value.strip() else None
+            if not raw_value or not raw_value.strip():
+                values[field_name] = None
+            elif field_name == "database_url":
+                values[field_name] = SecretStr(raw_value)
+            else:
+                values[field_name] = raw_value
 
         return cls.model_validate(values)
 

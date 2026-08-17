@@ -75,8 +75,14 @@ def test_invalid_database_url_error_does_not_expose_secret() -> None:
         Settings.from_env(environment)
 
     error = str(exc_info.value)
+    structured_errors = repr(exc_info.value.errors())
+    json_errors = exc_info.value.json()
     assert database_url not in error
     assert secret_marker not in error
+    assert database_url not in structured_errors
+    assert secret_marker not in structured_errors
+    assert database_url not in json_errors
+    assert secret_marker not in json_errors
 
 
 def test_settings_parse_allowed_origins_without_changing_values() -> None:
