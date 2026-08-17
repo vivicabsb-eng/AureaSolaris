@@ -220,7 +220,7 @@ describe('AuthProvider', () => {
   it('becomes anonymous when Supabase clears the local session even if remote logout fails', async () => {
     const auth = createFakeAuthClient({
       initialSession: sessionFor('user-e'),
-      signOutError: { status: 403, message: 'provider logout detail' },
+      signOutError: { status: 503, message: 'provider logout detail' },
     });
 
     render(<AuthProvider client={auth.client}><Probe /></AuthProvider>);
