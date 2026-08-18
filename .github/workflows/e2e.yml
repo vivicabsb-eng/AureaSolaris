@@ -154,10 +154,6 @@ jobs:
           raise SystemExit(subprocess.run([sys.executable, '-m', 'unittest', *modules, '-v']).returncode)
           PY
 
-      - name: Run approved astrology reference certification
-        id: astrology-reference
-        run: python tests/engine_reference/run_reference_checks.py --require-approved
-
       - name: Agent handoff summary
         if: always()
         shell: bash
@@ -184,14 +180,12 @@ jobs:
             echo "| disposable data setup | ${{ steps.data.outcome }} |"
             echo "| test classification | ${{ steps.classification.outcome }} |"
             echo "| classified unittest suite | ${{ steps.tests.outcome }} |"
-            echo "| approved astrology reference certification | ${{ steps.astrology-reference.outcome }} |"
             echo
             echo "### Reproduce locally (POSIX shell)"
             echo '```bash'
             echo 'python -m pip install -r requirements-api.txt'
             echo 'export AUREA_DATA_DIR="$(mktemp -d)/data"'
             echo "python -m unittest $MODULES -v"
-            echo 'python tests/engine_reference/run_reference_checks.py --require-approved'
             echo '```'
             echo
             if [ "${{ steps.data.outcome }}" = "failure" ]; then
@@ -200,12 +194,73 @@ jobs:
               echo "**Start with:** \`.github/python-test-classification.txt\`. Every \`tests/test_*.py\` file must be classified exactly once."
             elif [ "${{ steps.tests.outcome }}" = "failure" ]; then
               echo "**Start with:** the first failing Python test above. Its module identifies the affected API/runtime/storage subsystem."
-            elif [ "${{ steps.astrology-reference.outcome }}" = "failure" ]; then
-              echo "**Start with:** an approved external-reference fixture with real provenance; pending/rejected fixtures cannot certify the engine."
             elif [ "${{ steps.install.outcome }}" = "failure" ]; then
               echo "**Start with:** Python dependency installation/\`requirements-api.txt\`."
             else
-              echo "Python quality and approved astrology reference certification passed using disposable CI data."
+              echo "Python quality passed using disposable CI data."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  astrology-reference-certification:
+    name: Astrology Reference Certification
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements-api.txt
+
+      - name: Install astrology reference dependencies
+        id: install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-api.txt
+
+      - name: Configure disposable certification data
+        id: data
+        shell: bash
+        run: |
+          data_dir="$RUNNER_TEMP/aurea-reference-certification/data"
+          mkdir -p "$data_dir"
+          echo "AUREA_DATA_DIR=$data_dir" >> "$GITHUB_ENV"
+          echo "Using disposable AUREA_DATA_DIR=$data_dir"
+
+      - name: Run approved astrology reference certification
+        id: certification
+        run: python tests/engine_reference/run_reference_checks.py --require-approved
+
+      - name: Agent handoff summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Astrology Reference Certification"
+            echo
+            echo "| Gate | Outcome |"
+            echo "|---|---|"
+            echo "| dependency install | ${{ steps.install.outcome }} |"
+            echo "| disposable data setup | ${{ steps.data.outcome }} |"
+            echo "| approved external reference certification | ${{ steps.certification.outcome }} |"
+            echo
+            echo "### Reproduce locally"
+            echo '```bash'
+            echo 'python -m pip install -r requirements-api.txt'
+            echo 'export AUREA_DATA_DIR="$(mktemp -d)/data"'
+            echo 'python tests/engine_reference/run_reference_checks.py --require-approved'
+            echo '```'
+            echo
+            if [ "${{ steps.certification.outcome }}" = "failure" ]; then
+              echo "**Start with:** an approved external-reference fixture with real provenance; pending/rejected fixtures cannot certify the engine."
+            elif [ "${{ steps.install.outcome }}" = "failure" ]; then
+              echo "**Start with:** Python dependency installation/\`requirements-api.txt\`."
+            elif [ "${{ steps.data.outcome }}" = "failure" ]; then
+              echo "**Start with:** disposable certification data setup."
+            else
+              echo "Approved external-reference certification passed."
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
