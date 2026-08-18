@@ -74,7 +74,9 @@ def test_natal_adapter_matches_frozen_base_output() -> None:
 def test_transit_adapter_matches_frozen_base_output() -> None:
     adapter = SwissEphemerisAstrologyEngine()
     as_of = datetime(2000, 1, 2, 1, 30, tzinfo=UTC)
-    assert _digest(adapter.transits(_birth(), as_of)) == _BASELINE["transit_sha256"]
+    result = adapter.transits(_birth(), as_of)
+    assert result["meta"]["receipt"]["input"]["utc_offset_minutes"] is None
+    assert _digest(result) == _BASELINE["transit_sha256"]
 
 
 def test_adapter_exposes_certified_version_and_real_ephemeris_readiness() -> None:
@@ -149,8 +151,16 @@ def test_transit_preserves_aware_dst_fold_offset(
     adapter = SwissEphemerisAstrologyEngine()
     zone = ZoneInfo("America/New_York")
     as_of = datetime(2024, 11, 3, 1, 30, tzinfo=zone, fold=fold)
+    birth = BirthData(
+        birth_date=date(2000, 1, 1),
+        birth_time=time(12, 0),
+        timezone="America/New_York",
+        latitude=40.7128,
+        longitude=-74.0060,
+        house_system="P",
+    )
 
-    result = adapter.transits(_birth(), as_of)
+    result = adapter.transits(birth, as_of)
     receipt = result["meta"]["receipt"]
     assert receipt["input"]["utc_offset_minutes"] == expected_offset
     assert receipt["resolved_time"]["utc"] == expected_utc

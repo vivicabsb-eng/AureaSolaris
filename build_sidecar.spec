@@ -29,7 +29,7 @@ for filename in REQUIRED_EPHEMERIS_FILES:
 backports_datas, backports_binaries, backports_hiddenimports = collect_all('backports')
 
 ephe_datas = [(EPHEMERIS_SRC, EPHEMERIS_DEST)]
-frontend_datas = [(os.path.join(PROJECT_ROOT, 'apps/web/dist'), 'apps/web/dist')]
+frontend_datas = [('apps/web/dist', 'apps/web/dist')]
 
 a = Analysis(
     ['main_api.py'],

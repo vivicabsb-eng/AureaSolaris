@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sys
-from datetime import datetime, time
+from datetime import datetime, time, timezone
 from math import isfinite
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -31,6 +31,29 @@ def _decimal_hour(value: time) -> float:
         + value.second / 3600.0
         + value.microsecond / 3_600_000_000.0
     )
+
+
+def _ambiguous_offset_minutes(local: datetime, zone: ZoneInfo) -> int | None:
+    """Return the selected offset only when the local civil time is ambiguous."""
+
+    local_naive = local.replace(tzinfo=None)
+    valid_offsets: set[int] = set()
+    for fold in (0, 1):
+        candidate = local_naive.replace(tzinfo=zone, fold=fold)
+        candidate_offset = candidate.utcoffset()
+        if candidate_offset is None:
+            continue
+        round_trip = candidate.astimezone(timezone.utc).astimezone(zone)
+        if round_trip.replace(tzinfo=None) == local_naive:
+            valid_offsets.add(int(candidate_offset.total_seconds() // 60))
+
+    if len(valid_offsets) <= 1:
+        return None
+
+    selected_offset = local.utcoffset()
+    if selected_offset is None:
+        raise ValueError("as_of must resolve to a UTC offset")
+    return int(selected_offset.total_seconds() // 60)
 
 
 class SwissEphemerisAstrologyEngine:
@@ -85,11 +108,9 @@ class SwissEphemerisAstrologyEngine:
     def transits(self, birth: BirthData, as_of: datetime) -> CertifiedCalculation:
         if as_of.tzinfo is None or as_of.utcoffset() is None:
             raise ValueError("as_of must be timezone-aware")
-        local = as_of.astimezone(ZoneInfo(birth.timezone))
-        local_offset = local.utcoffset()
-        if local_offset is None:
-            raise ValueError("as_of must resolve to a UTC offset")
-        utc_offset_minutes = int(local_offset.total_seconds() // 60)
+        zone = ZoneInfo(birth.timezone)
+        local = as_of.astimezone(zone)
+        utc_offset_minutes = _ambiguous_offset_minutes(local, zone)
         hour = (
             local.hour
             + local.minute / 60.0
