@@ -15,6 +15,7 @@ from .config import Settings, get_settings
 from .dependencies import unavailable_readiness_probe
 from .errors import register_error_handlers
 from .health import router as health_router
+from .infrastructure.ephemeris.adapter import SwissEphemerisAstrologyEngine
 from .middleware import configure_request_logging, install_http_middleware
 
 
@@ -38,9 +39,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     configure_request_logging()
 
     app = FastAPI(title="Aurea Solaris API", version="0.1.0", lifespan=_lifespan)
+    astrology_engine = SwissEphemerisAstrologyEngine()
     app.state.settings = resolved_settings
     app.state.database_readiness = unavailable_readiness_probe
-    app.state.engine_readiness = unavailable_readiness_probe
+    app.state.engine_readiness = astrology_engine.readiness
+    app.state.astrology_engine = astrology_engine
     app.state.token_verifier = TokenVerifier(resolved_settings)
     app.state.database_pool = None
     app.state.database_pool_lock = asyncio.Lock()
