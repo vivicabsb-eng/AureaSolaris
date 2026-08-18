@@ -53,3 +53,16 @@ python_version = "3.12"
 strict = true
 mypy_path = "$MYPY_CONFIG_FILE_DIR/src"
 plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+# Preserve the certified legacy artifacts byte-for-byte; new boundary code remains strict.
+module = [
+  "aurea_api.domain.astrology.engine",
+  "aurea_api.domain.astrology.governance",
+]
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+# pyswisseph and optional kerykeion do not publish typing metadata/stubs.
+module = ["swisseph", "kerykeion"]
+ignore_missing_imports = true

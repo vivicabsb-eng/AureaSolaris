@@ -5,7 +5,7 @@ from math import isfinite
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-import swisseph as swe  # type: ignore[import-untyped]
+import swisseph as swe
 
 from aurea_api.domain.astrology import engine as certified_engine
 from aurea_api.domain.astrology.models import BirthData, CertifiedCalculation, EngineVersion
