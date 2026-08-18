@@ -132,10 +132,13 @@ def test_digest_normalizes_only_documented_checkout_path_fields() -> None:
             }
         }
     }
+    outside_left = {"meta": {"receipt": {"db_path": checkout_a}}}
+    outside_right = {"meta": {"receipt": {"db_path": checkout_b}}}
 
     assert _digest(left) == _digest(right)
     assert _stable(left)["meta"]["governance"]["receipt"]["db_path"].startswith("<repo>/")
     assert _digest({"detail": checkout_a}) != _digest({"detail": checkout_b})
+    assert _digest(outside_left) != _digest(outside_right)
 
 
 def test_natal_adapter_matches_frozen_base_output() -> None:
