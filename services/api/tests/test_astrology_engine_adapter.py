@@ -40,18 +40,18 @@ def _normalize_documented_path(value: str) -> str:
     return normalized
 
 
-def _normalize_documented_paths(value: Any) -> Any:
+def _normalize_governance_paths(value: Any) -> Any:
     if isinstance(value, dict):
         return {
             key: (
                 _normalize_documented_path(item)
                 if key in _PATH_KEYS and isinstance(item, str)
-                else _normalize_documented_paths(item)
+                else _normalize_governance_paths(item)
             )
             for key, item in value.items()
         }
     if isinstance(value, list):
-        return [_normalize_documented_paths(item) for item in value]
+        return [_normalize_governance_paths(item) for item in value]
     return value
 
 
@@ -66,9 +66,8 @@ def _stable(value: dict[str, Any]) -> dict[str, Any]:
         governance_receipt = governance.get("receipt")
         if isinstance(governance_receipt, dict):
             governance_receipt.pop("timestamp_utc", None)
-    stable = _normalize_documented_paths(normalized)
-    assert isinstance(stable, dict)
-    return stable
+        meta["governance"] = _normalize_governance_paths(governance)
+    return normalized
 
 
 def _digest(value: dict[str, Any]) -> str:
