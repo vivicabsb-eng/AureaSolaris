@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, time
 from typing import Any, Protocol
 
-type CertifiedCalculation = dict[str, Any]
+CertifiedCalculation = dict[str, Any]
 
 
 @dataclass(frozen=True, slots=True)
