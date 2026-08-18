@@ -66,6 +66,8 @@ class SidecarPackagingLayoutTests(unittest.TestCase):
             "python tests/engine_reference/run_reference_checks.py --require-approved",
             ci,
         )
+        self.assertIn("name: Astrology Reference Certification", ci)
+        self.assertIn("needs: [frontend-quality, python-quality, packaged-sidecar]", ci)
         self.assertIn("FDM-712 base parity", web_api)
         self.assertIn("services/api/tests/test_astrology_engine_adapter.py", web_api)
 
