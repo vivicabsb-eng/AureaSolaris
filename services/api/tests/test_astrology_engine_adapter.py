@@ -23,6 +23,36 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 _BASELINE_PATH = Path(__file__).resolve().parent / "fixtures" / "astrology_base_output_hashes.json"
 _BASELINE = json.loads(_BASELINE_PATH.read_text(encoding="utf-8"))
 _REQUIRED_EPHEMERIS_FILES = ("seas_18.se1", "semo_18.se1", "sepl_18.se1")
+_PATH_KEYS = {"db_path", "library_path"}
+_REPOSITORY_PATH_ANCHOR = "knowledge/engenharia_astrologica/"
+
+
+def _normalize_documented_path(value: str) -> str:
+    """Normalize only documented governance paths that contain the checkout root."""
+
+    normalized = value.replace("\\", "/")
+    anchor_index = normalized.lower().find(_REPOSITORY_PATH_ANCHOR)
+    is_absolute = normalized.startswith("/") or (
+        len(normalized) >= 3 and normalized[1] == ":" and normalized[2] == "/"
+    )
+    if is_absolute and anchor_index >= 0:
+        return f"<repo>/{normalized[anchor_index:]}"
+    return normalized
+
+
+def _normalize_documented_paths(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            key: (
+                _normalize_documented_path(item)
+                if key in _PATH_KEYS and isinstance(item, str)
+                else _normalize_documented_paths(item)
+            )
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [_normalize_documented_paths(item) for item in value]
+    return value
 
 
 def _stable(value: dict[str, Any]) -> dict[str, Any]:
@@ -36,7 +66,9 @@ def _stable(value: dict[str, Any]) -> dict[str, Any]:
         governance_receipt = governance.get("receipt")
         if isinstance(governance_receipt, dict):
             governance_receipt.pop("timestamp_utc", None)
-    return normalized
+    stable = _normalize_documented_paths(normalized)
+    assert isinstance(stable, dict)
+    return stable
 
 
 def _digest(value: dict[str, Any]) -> str:
@@ -61,9 +93,47 @@ def _birth() -> BirthData:
     )
 
 
+def _transit_birth(timezone: str) -> BirthData:
+    return BirthData(
+        birth_date=date(2000, 1, 1),
+        birth_time=time(12, 0),
+        timezone=timezone,
+        latitude=40.7128 if timezone == "America/New_York" else 0.0,
+        longitude=-74.0060 if timezone == "America/New_York" else 0.0,
+        house_system="P",
+    )
+
+
 def test_frozen_output_baseline_is_bound_to_fdm712_base_engine() -> None:
     assert _BASELINE["base_commit"] == "6ddda7627e9634e91fa303e296dec79fd93b9340"
     assert _BASELINE["engine_blob"] == "44ba2ee6906ca58a56ab876fb23a417c47f8142e"
+
+
+def test_digest_normalizes_only_documented_checkout_path_fields() -> None:
+    checkout_a = "/tmp/a/knowledge/engenharia_astrologica/knowledge/build/editorial_current.sqlite"
+    checkout_b = "D:\\work\\b\\knowledge\\engenharia_astrologica\\knowledge\\build\\editorial_current.sqlite"
+    rule_a = "/tmp/a/knowledge/engenharia_astrologica/library/rule.md"
+    rule_b = "D:\\work\\b\\knowledge\\engenharia_astrologica\\library\\rule.md"
+    left = {
+        "meta": {
+            "governance": {
+                "receipt": {"db_path": checkout_a},
+                "rules_applied": [{"library_path": rule_a}],
+            }
+        }
+    }
+    right = {
+        "meta": {
+            "governance": {
+                "receipt": {"db_path": checkout_b},
+                "rules_applied": [{"library_path": rule_b}],
+            }
+        }
+    }
+
+    assert _digest(left) == _digest(right)
+    assert _stable(left)["meta"]["governance"]["receipt"]["db_path"].startswith("<repo>/")
+    assert _digest({"detail": checkout_a}) != _digest({"detail": checkout_b})
 
 
 def test_natal_adapter_matches_frozen_base_output() -> None:
@@ -166,16 +236,53 @@ def test_transit_preserves_aware_dst_fold_offset(
     adapter = SwissEphemerisAstrologyEngine()
     zone = ZoneInfo("America/New_York")
     as_of = datetime(2024, 11, 3, 1, 30, tzinfo=zone, fold=fold)
-    birth = BirthData(
-        birth_date=date(2000, 1, 1),
-        birth_time=time(12, 0),
-        timezone="America/New_York",
-        latitude=40.7128,
-        longitude=-74.0060,
-        house_system="P",
-    )
 
-    result = adapter.transits(birth, as_of)
+    result = adapter.transits(_transit_birth("America/New_York"), as_of)
     receipt = result["meta"]["receipt"]
     assert receipt["input"]["utc_offset_minutes"] == expected_offset
     assert receipt["resolved_time"]["utc"] == expected_utc
+
+
+def test_transit_rounding_rolls_235931_into_next_date() -> None:
+    adapter = SwissEphemerisAstrologyEngine()
+    result = adapter.transits(
+        _transit_birth("UTC"),
+        datetime(2024, 1, 1, 23, 59, 31, tzinfo=UTC),
+    )
+
+    receipt = result["meta"]["receipt"]
+    assert receipt["input"]["year"] == 2024
+    assert receipt["input"]["month"] == 1
+    assert receipt["input"]["day"] == 2
+    assert receipt["input"]["hour"] == 0.0
+    assert receipt["resolved_time"]["utc"] == "2024-01-02T00:00:00Z"
+
+
+def test_transit_rounding_crosses_spring_forward_as_real_instant() -> None:
+    adapter = SwissEphemerisAstrologyEngine()
+    zone = ZoneInfo("America/New_York")
+    result = adapter.transits(
+        _transit_birth("America/New_York"),
+        datetime(2024, 3, 10, 1, 59, 31, tzinfo=zone),
+    )
+
+    receipt = result["meta"]["receipt"]
+    assert receipt["input"]["hour"] == 3.0
+    assert receipt["input"]["utc_offset_minutes"] is None
+    assert receipt["resolved_time"]["local"] == "2024-03-10T03:00:00-04:00"
+    assert receipt["resolved_time"]["utc"] == "2024-03-10T07:00:00Z"
+
+
+def test_transit_rounding_crosses_fall_back_fold_zero_as_real_instant() -> None:
+    adapter = SwissEphemerisAstrologyEngine()
+    zone = ZoneInfo("America/New_York")
+    result = adapter.transits(
+        _transit_birth("America/New_York"),
+        datetime(2024, 11, 3, 1, 59, 31, tzinfo=zone, fold=0),
+    )
+
+    receipt = result["meta"]["receipt"]
+    assert receipt["input"]["hour"] == 1.0
+    assert receipt["input"]["utc_offset_minutes"] == -300
+    assert receipt["resolved_time"]["local"] == "2024-11-03T01:00:00-05:00"
+    assert receipt["resolved_time"]["utc"] == "2024-11-03T06:00:00Z"

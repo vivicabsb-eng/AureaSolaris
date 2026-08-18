@@ -46,6 +46,16 @@ class SidecarPackagingLayoutTests(unittest.TestCase):
         self.assertNotIn("error", result, result.get("error"))
         self.assertEqual(result["meta"]["receipt"]["ephemeris"]["mode"], "swiss")
 
+    def test_packaged_smoke_executes_canonical_swiss_astrology(self) -> None:
+        smoke = (REPO_ROOT / "tests" / "browser_runtime_packaged_smoke.ps1").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("get_transit_positions", smoke)
+        self.assertIn("FLG_SWIEPH", smoke)
+        self.assertIn("Chiron", smoke)
+        self.assertIn("ASTRO_CALC", smoke)
+
 
 if __name__ == "__main__":
     unittest.main()
