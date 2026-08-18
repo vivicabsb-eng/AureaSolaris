@@ -99,6 +99,61 @@ try {
         }
     }
 
+    # Derive a deterministic source-of-truth result from the tracked Swiss
+    # files, then require the packaged executable to reproduce it. Chiron
+    # deliberately exercises seas_18.se1 in addition to the planetary file.
+    $canonicalProbe = @'
+import json
+from pathlib import Path
+import swisseph as swe
+
+ephemeris_path = Path.cwd() / "services" / "api" / "ephe"
+swe.set_ephe_path(str(ephemeris_path))
+jd = swe.julday(2000, 1, 2, 1.5)
+flags = swe.FLG_SWIEPH | swe.FLG_SPEED
+sun, sun_flags = swe.calc(jd, swe.SUN, flags)
+chiron, chiron_flags = swe.calc(jd, swe.CHIRON, flags)
+if not (sun_flags & swe.FLG_SWIEPH) or not (chiron_flags & swe.FLG_SWIEPH):
+    raise SystemExit("Swiss Ephemeris FLG_SWIEPH was not returned by the canonical probe")
+print(json.dumps({"Sun": round(sun[0] % 360, 2), "Chiron": round(chiron[0] % 360, 2)}))
+'@
+    $canonicalRaw = & python -c $canonicalProbe
+    if ($LASTEXITCODE -ne 0) { throw 'Falha no probe canônico do Swiss Ephemeris.' }
+    $canonical = ($canonicalRaw -join "`n") | ConvertFrom-Json
+
+    $astroPayload = @{
+        year = 2000
+        month = 1
+        day = 1
+        hour = 23.5
+        lat = -23.5505
+        lon = -46.6333
+        timezone = 'America/Sao_Paulo'
+        include_asteroids = $true
+    } | ConvertTo-Json -Compress
+    $astroBody = @{
+        command = 'get_transit_positions'
+        args = @{ payload = $astroPayload }
+    } | ConvertTo-Json -Compress -Depth 8
+    $astro = Invoke-BrowserCommand -Command 'get_transit_positions' -RawBody $astroBody
+    if ($astro.StatusCode -ne 200) { throw "get_transit_positions status=$($astro.StatusCode)" }
+    $astroResultJson = [string]$astro.Json.result
+    $astroResult = $astroResultJson | ConvertFrom-Json
+    if ($null -ne $astroResult.error) { throw "Cálculo astrológico empacotado falhou: $($astroResult.error)" }
+    if ([string]$astroResult.meta.receipt.ephemeris.mode -ne 'swiss') {
+        throw "Cálculo empacotado não usou Swiss Ephemeris: $($astroResult.meta.receipt.ephemeris.mode)"
+    }
+    if ([string]$astroResult.meta.receipt.resolved_time.utc -ne '2000-01-02T01:30:00Z') {
+        throw "Instante astrológico inesperado: $($astroResult.meta.receipt.resolved_time.utc)"
+    }
+    if ([double]$astroResult.planets.Sun.degree -ne [double]$canonical.Sun) {
+        throw "Sol empacotado=$($astroResult.planets.Sun.degree), canônico=$($canonical.Sun)"
+    }
+    if ($null -eq $astroResult.planets.Chiron -or [double]$astroResult.planets.Chiron.degree -ne [double]$canonical.Chiron) {
+        throw "Chiron empacotado=$($astroResult.planets.Chiron.degree), canônico=$($canonical.Chiron)"
+    }
+    Write-Output "ASTRO_CALC status=ok engine=swisseph sun=$($canonical.Sun) chiron=$($canonical.Chiron)"
+
     $first = Invoke-BrowserCommand -Command 'private_initial_access'
     $second = Invoke-BrowserCommand -Command 'private_initial_access'
     if ($first.StatusCode -ne 200 -or $second.StatusCode -ne 200) {
@@ -126,7 +181,7 @@ try {
         throw 'load_board não devolveu o caderno gravado'
     }
     Write-Output "BOARD_ROUNDTRIP status=ok owner_kind=$kind"
-    Write-Output "SMOKE PASS port=$ApiPort health=200 engine=swisseph auth_mode=local-owner browser_contract_version=2 root=200 openapi=200 token_equality=true board_roundtrip=ok"
+    Write-Output "SMOKE PASS port=$ApiPort health=200 engine=swisseph auth_mode=local-owner browser_contract_version=2 root=200 openapi=200 astro_calc=ok token_equality=true board_roundtrip=ok"
 } finally {
     Invoke-CleanupStep 'runtime-tree' { if ($null -ne $runtime) { Stop-Tree $runtime } }
     Invoke-CleanupStep 'ASTRO_API_PORT-restore' {
