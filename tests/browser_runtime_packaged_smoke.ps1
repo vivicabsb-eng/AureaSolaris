@@ -117,7 +117,9 @@ if not (sun_flags & swe.FLG_SWIEPH) or not (chiron_flags & swe.FLG_SWIEPH):
     raise SystemExit("Swiss Ephemeris FLG_SWIEPH was not returned by the canonical probe")
 print(json.dumps({"Sun": round(sun[0] % 360, 2), "Chiron": round(chiron[0] % 360, 2)}))
 '@
-    $canonicalRaw = & python -c $canonicalProbe
+    $probePath = Join-Path $tempRoot 'canonical_swiss_probe.py'
+    Set-Content -LiteralPath $probePath -Value $canonicalProbe -Encoding UTF8
+    $canonicalRaw = & python $probePath
     if ($LASTEXITCODE -ne 0) { throw 'Falha no probe canônico do Swiss Ephemeris.' }
     $canonical = ($canonicalRaw -join "`n") | ConvertFrom-Json
 
