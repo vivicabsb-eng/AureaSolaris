@@ -16,6 +16,7 @@ python-quality tests/test_local_storage.py
 python-quality tests/test_persistence_repositories.py
 python-quality tests/test_run_e2e.py
 python-quality tests/test_seed_test_user.py
+python-quality tests/test_sidecar_packaging_layout.py
 python-quality tests/test_web_v1_engine_contract.py
 integration tests/test_compiled_runtime_smoke.py
 platform-release tests/test_clean_generated.py
