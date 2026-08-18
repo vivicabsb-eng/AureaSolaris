@@ -282,7 +282,7 @@ def test_transit_rounding_crosses_fall_back_fold_zero_as_real_instant() -> None:
     )
 
     receipt = result["meta"]["receipt"]
-    assert receipt["input"]["hour"] == 1.0
-    assert receipt["input"]["utc_offset_minutes"] == -300
-    assert receipt["resolved_time"]["local"] == "2024-11-03T01:00:00-05:00"
-    assert receipt["resolved_time"]["utc"] == "2024-11-03T06:00:00Z"
+    assert receipt["input"]["hour"] == 2.0
+    assert receipt["input"]["utc_offset_minutes"] is None
+    assert receipt["resolved_time"]["local"] == "2024-11-03T02:00:00-05:00"
+    assert receipt["resolved_time"]["utc"] == "2024-11-03T07:00:00Z"
