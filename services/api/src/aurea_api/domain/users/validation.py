@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import re
-from datetime import date, time
+from datetime import UTC, date, datetime, time
 from decimal import Decimal
 from importlib.resources import files
+from zoneinfo import ZoneInfo
 
 _COORDINATE_QUANTUM = Decimal("0.000001")
 _IANA_TIMEZONES = frozenset(
@@ -68,6 +69,36 @@ def normalize_local_time(value: time) -> time:
     if value.tzinfo is not None or value.utcoffset() is not None:
         raise ValueError("birth_time must be a local time without an offset")
     return value.replace(microsecond=0, fold=0)
+
+
+def validate_reproducible_birth_instant(
+    birth_date: date,
+    birth_time: time,
+    timezone_name: str,
+) -> None:
+    """Reject local birth wall times that do not identify exactly one instant."""
+
+    zone = ZoneInfo(timezone_name)
+    local_naive = datetime.combine(birth_date, birth_time)
+    valid_offsets: set[int] = set()
+
+    for fold in (0, 1):
+        local_aware = local_naive.replace(tzinfo=zone, fold=fold)
+        offset = local_aware.utcoffset()
+        if offset is None:
+            continue
+        round_trip = local_aware.astimezone(UTC).astimezone(zone)
+        if round_trip.replace(tzinfo=None) != local_naive:
+            continue
+        valid_offsets.add(int(offset.total_seconds() // 60))
+
+    if not valid_offsets:
+        raise ValueError("birth date/time does not exist in the supplied IANA timezone")
+    if len(valid_offsets) > 1:
+        raise ValueError(
+            "birth date/time is ambiguous in the supplied IANA timezone; "
+            "Web V1 cannot persist a DST fold"
+        )
 
 
 def normalize_coordinate(value: Decimal) -> Decimal:

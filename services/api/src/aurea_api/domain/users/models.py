@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from datetime import date, datetime, time
 from decimal import Decimal
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 from uuid import UUID
 
-from pydantic import AfterValidator, BaseModel, ConfigDict, Field
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, model_validator
 
 from .validation import (
     normalize_coordinate,
@@ -14,6 +14,7 @@ from .validation import (
     normalize_locale,
     normalize_required_text,
     validate_past_date,
+    validate_reproducible_birth_instant,
 )
 
 RequiredText = Annotated[str, AfterValidator(normalize_required_text)]
@@ -62,6 +63,11 @@ class BirthProfileUpdate(_ContractModel):
     longitude: Longitude
     place: RequiredText
     house_system: HouseSystem = "P"
+
+    @model_validator(mode="after")
+    def require_reproducible_birth_instant(self) -> Self:
+        validate_reproducible_birth_instant(self.birth_date, self.birth_time, self.timezone)
+        return self
 
 
 class BirthProfileResponse(_ContractModel):
