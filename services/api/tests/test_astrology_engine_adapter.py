@@ -111,7 +111,9 @@ def test_frozen_output_baseline_is_bound_to_fdm712_base_engine() -> None:
 
 def test_digest_normalizes_only_documented_checkout_path_fields() -> None:
     checkout_a = "/tmp/a/knowledge/engenharia_astrologica/knowledge/build/editorial_current.sqlite"
-    checkout_b = "D:\\work\\b\\knowledge\\engenharia_astrologica\\knowledge\\build\\editorial_current.sqlite"
+    checkout_b = (
+        "D:\\work\\b\\knowledge\\engenharia_astrologica\\knowledge\\build\\editorial_current.sqlite"
+    )
     rule_a = "/tmp/a/knowledge/engenharia_astrologica/library/rule.md"
     rule_b = "D:\\work\\b\\knowledge\\engenharia_astrologica\\library\\rule.md"
     left = {
