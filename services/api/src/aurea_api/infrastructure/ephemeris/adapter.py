@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sys
-from datetime import UTC, datetime, time
+from datetime import UTC, datetime, time, timedelta
 from math import isfinite
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -13,6 +13,7 @@ from aurea_api.domain.astrology.models import BirthData, CertifiedCalculation, E
 
 _REQUIRED_EPHEMERIS_FILES = ("seas_18.se1", "semo_18.se1", "sepl_18.se1")
 _HOUSE_SYSTEMS = {"P": "Placidus"}
+_MICROSECONDS_PER_MINUTE = 60_000_000
 
 
 def default_ephemeris_path() -> Path:
@@ -54,6 +55,20 @@ def _ambiguous_offset_minutes(local: datetime, zone: ZoneInfo) -> int | None:
     if selected_offset is None:
         raise ValueError("as_of must resolve to a UTC offset")
     return int(selected_offset.total_seconds() // 60)
+
+
+def _round_local_aware_to_minute(local: datetime, zone: ZoneInfo) -> datetime:
+    """Apply certified civil-minute rounding before resolving DST/date rollover."""
+
+    local_time = local.timetz().replace(tzinfo=None)
+    rounded_minutes = round(_decimal_hour(local_time) * 60)
+    microseconds_since_midnight = (
+        ((local.hour * 60 + local.minute) * 60 + local.second) * 1_000_000
+        + local.microsecond
+    )
+    delta_microseconds = rounded_minutes * _MICROSECONDS_PER_MINUTE - microseconds_since_midnight
+    rounded_local = local + timedelta(microseconds=delta_microseconds)
+    return rounded_local.astimezone(UTC).astimezone(zone)
 
 
 class SwissEphemerisAstrologyEngine:
@@ -111,14 +126,9 @@ class SwissEphemerisAstrologyEngine:
         if as_of.tzinfo is None or as_of.utcoffset() is None:
             raise ValueError("as_of must be timezone-aware")
         zone = ZoneInfo(birth.timezone)
-        local = as_of.astimezone(zone)
+        local = _round_local_aware_to_minute(as_of.astimezone(zone), zone)
         utc_offset_minutes = _ambiguous_offset_minutes(local, zone)
-        hour = (
-            local.hour
-            + local.minute / 60.0
-            + local.second / 3600.0
-            + local.microsecond / 3_600_000_000.0
-        )
+        hour = local.hour + local.minute / 60.0
         swe.set_ephe_path(str(self.ephemeris_path))
         return certified_engine.calculate_transit_positions(
             year=local.year,
