@@ -92,6 +92,8 @@ class SwissEphemerisAstrologyEngine:
         )
 
     def natal(self, birth: BirthData) -> CertifiedCalculation:
+        if birth.house_system != "P":
+            raise ValueError("house_system must be 'P' for Web V1")
         swe.set_ephe_path(str(self.ephemeris_path))
         return certified_engine.calculate_astrology(
             year=birth.birth_date.year,
@@ -101,7 +103,7 @@ class SwissEphemerisAstrologyEngine:
             lat=birth.latitude,
             lon=birth.longitude,
             timezone_name=birth.timezone,
-            house_system=_HOUSE_SYSTEMS.get(birth.house_system, birth.house_system),
+            house_system=_HOUSE_SYSTEMS[birth.house_system],
             utc_offset_minutes=birth.utc_offset_minutes,
         )
 

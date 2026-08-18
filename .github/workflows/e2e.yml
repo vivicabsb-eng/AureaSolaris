@@ -237,6 +237,10 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements-api.txt
 
+      - name: Run Windows source-runtime ephemeris regression
+        id: source-runtime
+        run: python -m unittest tests.test_sidecar_packaging_layout -v
+
       - name: Build frontend
         id: build
         run: npm run build:web
@@ -262,6 +266,7 @@ jobs:
             echo "|---|---|"
             echo "| Node dependencies | ${{ steps.node-install.outcome }} |"
             echo "| sidecar dependencies | ${{ steps.python-install.outcome }} |"
+            echo "| source-runtime ephemeris regression | ${{ steps.source-runtime.outcome }} |"
             echo "| frontend build | ${{ steps.build.outcome }} |"
             echo "| PyInstaller sidecar | ${{ steps.package.outcome }} |"
             echo "| packaged-sidecar smoke | ${{ steps.smoke.outcome }} |"
@@ -270,6 +275,7 @@ jobs:
             echo '```powershell'
             echo 'npm ci'
             echo 'python -m pip install -r requirements-api.txt'
+            echo 'python -m unittest tests.test_sidecar_packaging_layout -v'
             echo 'npm run build:web'
             echo 'python -m PyInstaller --clean --noconfirm build_sidecar.spec'
             echo './tests/browser_runtime_packaged_smoke.ps1 -RuntimePath ./dist/astro-engine-x86_64-pc-windows-msvc.exe'

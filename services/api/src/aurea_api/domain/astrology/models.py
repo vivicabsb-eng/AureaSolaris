@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime, time
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol
 
 CertifiedCalculation = dict[str, Any]
 
@@ -21,7 +21,7 @@ class BirthData:
     timezone: str
     latitude: float
     longitude: float
-    house_system: str = "P"
+    house_system: Literal["P"] = "P"
     utc_offset_minutes: int | None = None
 
 
