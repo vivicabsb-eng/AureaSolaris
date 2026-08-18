@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import asyncio
 import copy
-import importlib.util
 from datetime import date, datetime, time, timezone
 from pathlib import Path
 from typing import Any
 
+from aurea_api.domain.astrology import engine as certified_engine
 from aurea_api.domain.astrology.models import BirthData
 from aurea_api.infrastructure.ephemeris.adapter import (
     SwissEphemerisAstrologyEngine,
@@ -14,14 +14,6 @@ from aurea_api.infrastructure.ephemeris.adapter import (
 )
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
-
-
-def _load_legacy_engine() -> Any:
-    spec = importlib.util.spec_from_file_location("fdm712_legacy_engine", _REPO_ROOT / "astro_engine.py")
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
 
 
 def _stable(value: dict[str, Any]) -> dict[str, Any]:
@@ -43,12 +35,10 @@ def _birth() -> BirthData:
     )
 
 
-def test_natal_adapter_matches_certified_legacy_result() -> None:
-    legacy = _load_legacy_engine()
+def test_natal_adapter_matches_certified_engine_result() -> None:
     adapter = SwissEphemerisAstrologyEngine()
     birth = _birth()
-
-    expected = legacy.calculate_astrology(
+    expected = certified_engine.calculate_astrology(
         year=2000,
         month=1,
         day=1,
@@ -58,17 +48,14 @@ def test_natal_adapter_matches_certified_legacy_result() -> None:
         timezone_name="America/Sao_Paulo",
         house_system="Placidus",
     )
-
     assert _stable(adapter.natal(birth)) == _stable(expected)
 
 
-def test_transit_adapter_matches_certified_legacy_result() -> None:
-    legacy = _load_legacy_engine()
+def test_transit_adapter_matches_certified_engine_result() -> None:
     adapter = SwissEphemerisAstrologyEngine()
     birth = _birth()
     as_of = datetime(2000, 1, 2, 1, 30, tzinfo=timezone.utc)
-
-    expected = legacy.calculate_transit_positions(
+    expected = certified_engine.calculate_transit_positions(
         year=2000,
         month=1,
         day=1,
@@ -78,13 +65,11 @@ def test_transit_adapter_matches_certified_legacy_result() -> None:
         timezone_name="America/Sao_Paulo",
         include_asteroids=False,
     )
-
     assert _stable(adapter.transits(birth, as_of)) == _stable(expected)
 
 
 def test_adapter_exposes_certified_version_and_real_ephemeris_readiness() -> None:
     adapter = SwissEphemerisAstrologyEngine()
-
     assert adapter.version.name == "aurea-solaris-astro-engine"
     assert adapter.version.receipt_schema_version == "calculation-receipt.v1"
     assert default_ephemeris_path() == (_REPO_ROOT / "services" / "api" / "ephe").resolve()
