@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sys
-from datetime import datetime, time, timezone
+from datetime import UTC, datetime, time
 from math import isfinite
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -43,7 +43,7 @@ def _ambiguous_offset_minutes(local: datetime, zone: ZoneInfo) -> int | None:
         candidate_offset = candidate.utcoffset()
         if candidate_offset is None:
             continue
-        round_trip = candidate.astimezone(timezone.utc).astimezone(zone)
+        round_trip = candidate.astimezone(UTC).astimezone(zone)
         if round_trip.replace(tzinfo=None) == local_naive:
             valid_offsets.add(int(candidate_offset.total_seconds() // 60))
 
