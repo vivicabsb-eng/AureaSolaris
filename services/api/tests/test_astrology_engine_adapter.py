@@ -18,9 +18,15 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 
 def _stable(value: dict[str, Any]) -> dict[str, Any]:
     normalized = copy.deepcopy(value)
-    receipt = normalized.get("meta", {}).get("receipt")
+    meta = normalized.get("meta", {})
+    receipt = meta.get("receipt")
     if isinstance(receipt, dict):
         receipt.pop("calculated_at_utc", None)
+    governance = meta.get("governance")
+    if isinstance(governance, dict):
+        governance_receipt = governance.get("receipt")
+        if isinstance(governance_receipt, dict):
+            governance_receipt.pop("timestamp_utc", None)
     return normalized
 
 
