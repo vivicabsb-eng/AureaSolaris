@@ -3,6 +3,6 @@
   "engine_blob": "44ba2ee6906ca58a56ab876fb23a417c47f8142e",
   "normalization": "remove meta.receipt.calculated_at_utc and meta.governance.receipt.timestamp_utc; for governance fields named db_path or library_path only, normalize path separators and replace an absolute checkout prefix before knowledge/engenharia_astrologica/ with <repo>/; then canonical JSON with sorted keys",
   "path_fields": ["meta.governance.**.db_path", "meta.governance.**.library_path"],
-  "natal_sha256": "93601f38fa52354cf72304cfbf51291099339d805ab192a2b69484bd4867ad97",
-  "transit_sha256": "07eb3baf9cb962239d1204a3c13340c9ed0adc2ae74028699c24245b372c430c"
+  "natal_sha256": "15ca7b91241d0768fb05a0380b5a141390a5b2fb233302b03d552df8fe042ae1",
+  "transit_sha256": "1d1cb82661e2469a13caeea23a03b8960abc98766150c9b9b393c98a3c651fc6"
 }
