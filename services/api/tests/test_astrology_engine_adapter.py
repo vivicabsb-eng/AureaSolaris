@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import copy
-from datetime import date, datetime, time, timezone
+from datetime import date, datetime, time
 from pathlib import Path
 from typing import Any
 
@@ -60,7 +60,7 @@ def test_natal_adapter_matches_certified_engine_result() -> None:
 def test_transit_adapter_matches_certified_engine_result() -> None:
     adapter = SwissEphemerisAstrologyEngine()
     birth = _birth()
-    as_of = datetime(2000, 1, 2, 1, 30, tzinfo=timezone.utc)
+    as_of = datetime(2000, 1, 2, 1, 30, tzinfo=datetime.UTC)
     expected = certified_engine.calculate_transit_positions(
         year=2000,
         month=1,

@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime, time
-from typing import Any, Protocol, TypeAlias
+from typing import Any, Protocol
 
-CertifiedCalculation: TypeAlias = dict[str, Any]
+type CertifiedCalculation = dict[str, Any]
 
 
 @dataclass(frozen=True, slots=True)
