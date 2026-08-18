@@ -13,7 +13,6 @@ from aurea_api.domain.astrology.models import BirthData, CertifiedCalculation, E
 
 _REQUIRED_EPHEMERIS_FILES = ("seas_18.se1", "semo_18.se1", "sepl_18.se1")
 _HOUSE_SYSTEMS = {"P": "Placidus"}
-_MICROSECONDS_PER_MINUTE = 60_000_000
 
 
 def default_ephemeris_path() -> Path:
@@ -62,12 +61,10 @@ def _round_local_aware_to_minute(local: datetime, zone: ZoneInfo) -> datetime:
 
     local_time = local.timetz().replace(tzinfo=None)
     rounded_minutes = round(_decimal_hour(local_time) * 60)
-    microseconds_since_midnight = (
-        ((local.hour * 60 + local.minute) * 60 + local.second) * 1_000_000
-        + local.microsecond
+    rounded_naive = datetime(local.year, local.month, local.day) + timedelta(
+        minutes=rounded_minutes
     )
-    delta_microseconds = rounded_minutes * _MICROSECONDS_PER_MINUTE - microseconds_since_midnight
-    rounded_local = local + timedelta(microseconds=delta_microseconds)
+    rounded_local = rounded_naive.replace(tzinfo=zone, fold=local.fold)
     return rounded_local.astimezone(UTC).astimezone(zone)
 
 
