@@ -263,6 +263,31 @@ def test_birth_profile_put_creates_and_updates_authenticated_owner(
     assert route_harness.birth_profiles.upsert_owner_ids == [route_harness.user_a] * 2
 
 
+def test_birth_profile_put_rejects_ambiguous_dst_wall_time_without_disambiguator(
+    route_harness: RouteHarness,
+) -> None:
+    payload = {
+        **_birth_profile_payload(),
+        "birth_date": "2024-11-03",
+        "birth_time": "01:30:00",
+        "timezone": "America/New_York",
+        "latitude": "40.712800",
+        "longitude": "-74.006000",
+        "place": "New York",
+    }
+
+    with TestClient(route_harness.app) as client:
+        response = client.put(
+            "/v1/birth-profile",
+            headers=route_harness.headers_a,
+            json=payload,
+        )
+
+    assert response.status_code == 422
+    assert response.json()["code"] == "validation_error"
+    assert route_harness.birth_profiles.upsert_owner_ids == []
+
+
 @pytest.mark.parametrize(
     ("path", "payload"),
     [

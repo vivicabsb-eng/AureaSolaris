@@ -79,6 +79,21 @@ def test_transit_adapter_matches_frozen_base_output() -> None:
     assert _digest(result) == _BASELINE["transit_sha256"]
 
 
+def test_natal_rejects_unsupported_house_system_before_certified_engine_call() -> None:
+    adapter = SwissEphemerisAstrologyEngine()
+    birth = BirthData(
+        birth_date=date(2000, 1, 1),
+        birth_time=time(23, 30),
+        timezone="America/Sao_Paulo",
+        latitude=-23.5505,
+        longitude=-46.6333,
+        house_system="R",  # type: ignore[arg-type]
+    )
+
+    with pytest.raises(ValueError, match="house_system"):
+        adapter.natal(birth)
+
+
 def test_adapter_exposes_certified_version_and_real_ephemeris_readiness() -> None:
     adapter = SwissEphemerisAstrologyEngine()
     assert adapter.version.name == "aurea-solaris-astro-engine"
