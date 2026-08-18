@@ -56,6 +56,19 @@ class SidecarPackagingLayoutTests(unittest.TestCase):
         self.assertIn("Chiron", smoke)
         self.assertIn("ASTRO_CALC", smoke)
 
+    def test_ci_separates_base_parity_from_approved_reference_certification(self) -> None:
+        ci = (REPO_ROOT / ".github" / "workflows" / "e2e.yml").read_text(encoding="utf-8")
+        web_api = (
+            REPO_ROOT / ".github" / "workflows" / "web-api-quality.yml"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn(
+            "python tests/engine_reference/run_reference_checks.py --require-approved",
+            ci,
+        )
+        self.assertIn("FDM-712 base parity", web_api)
+        self.assertIn("services/api/tests/test_astrology_engine_adapter.py", web_api)
+
 
 if __name__ == "__main__":
     unittest.main()
