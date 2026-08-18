@@ -154,9 +154,9 @@ jobs:
           raise SystemExit(subprocess.run([sys.executable, '-m', 'unittest', *modules, '-v']).returncode)
           PY
 
-      - name: Run astrology reference runner
+      - name: Run approved astrology reference certification
         id: astrology-reference
-        run: python tests/engine_reference/run_reference_checks.py
+        run: python tests/engine_reference/run_reference_checks.py --require-approved
 
       - name: Agent handoff summary
         if: always()
@@ -184,14 +184,14 @@ jobs:
             echo "| disposable data setup | ${{ steps.data.outcome }} |"
             echo "| test classification | ${{ steps.classification.outcome }} |"
             echo "| classified unittest suite | ${{ steps.tests.outcome }} |"
-            echo "| astrology reference runner | ${{ steps.astrology-reference.outcome }} |"
+            echo "| approved astrology reference certification | ${{ steps.astrology-reference.outcome }} |"
             echo
             echo "### Reproduce locally (POSIX shell)"
             echo '```bash'
             echo 'python -m pip install -r requirements-api.txt'
             echo 'export AUREA_DATA_DIR="$(mktemp -d)/data"'
             echo "python -m unittest $MODULES -v"
-            echo 'python tests/engine_reference/run_reference_checks.py'
+            echo 'python tests/engine_reference/run_reference_checks.py --require-approved'
             echo '```'
             echo
             if [ "${{ steps.data.outcome }}" = "failure" ]; then
@@ -201,11 +201,11 @@ jobs:
             elif [ "${{ steps.tests.outcome }}" = "failure" ]; then
               echo "**Start with:** the first failing Python test above. Its module identifies the affected API/runtime/storage subsystem."
             elif [ "${{ steps.astrology-reference.outcome }}" = "failure" ]; then
-              echo "**Start with:** the astrology reference fixture or reference-runner failure above."
+              echo "**Start with:** an approved external-reference fixture with real provenance; pending/rejected fixtures cannot certify the engine."
             elif [ "${{ steps.install.outcome }}" = "failure" ]; then
               echo "**Start with:** Python dependency installation/\`requirements-api.txt\`."
             else
-              echo "Python quality and astrology reference checks passed using disposable CI data."
+              echo "Python quality and approved astrology reference certification passed using disposable CI data."
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
