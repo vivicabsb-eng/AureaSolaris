@@ -22,7 +22,11 @@ import json
 from aurea_api.domain.astrology.governance import EngineGovernance
 
 governance = EngineGovernance()
-print(json.dumps({"db_path": str(governance.db_path.resolve()), "exists": governance.db_path.exists()}))
+payload = {
+    "db_path": str(governance.db_path.resolve()),
+    "exists": governance.db_path.exists(),
+}
+print(json.dumps(payload))
 """
     completed = subprocess.run(
         [sys.executable, "-c", script],
