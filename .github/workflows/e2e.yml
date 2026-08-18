@@ -154,6 +154,10 @@ jobs:
           raise SystemExit(subprocess.run([sys.executable, '-m', 'unittest', *modules, '-v']).returncode)
           PY
 
+      - name: Run astrology reference runner
+        id: astrology-reference
+        run: python tests/engine_reference/run_reference_checks.py
+
       - name: Agent handoff summary
         if: always()
         shell: bash
@@ -180,12 +184,14 @@ jobs:
             echo "| disposable data setup | ${{ steps.data.outcome }} |"
             echo "| test classification | ${{ steps.classification.outcome }} |"
             echo "| classified unittest suite | ${{ steps.tests.outcome }} |"
+            echo "| astrology reference runner | ${{ steps.astrology-reference.outcome }} |"
             echo
             echo "### Reproduce locally (POSIX shell)"
             echo '```bash'
             echo 'python -m pip install -r requirements-api.txt'
             echo 'export AUREA_DATA_DIR="$(mktemp -d)/data"'
             echo "python -m unittest $MODULES -v"
+            echo 'python tests/engine_reference/run_reference_checks.py'
             echo '```'
             echo
             if [ "${{ steps.data.outcome }}" = "failure" ]; then
@@ -194,16 +200,85 @@ jobs:
               echo "**Start with:** \`.github/python-test-classification.txt\`. Every \`tests/test_*.py\` file must be classified exactly once."
             elif [ "${{ steps.tests.outcome }}" = "failure" ]; then
               echo "**Start with:** the first failing Python test above. Its module identifies the affected API/runtime/storage subsystem."
+            elif [ "${{ steps.astrology-reference.outcome }}" = "failure" ]; then
+              echo "**Start with:** the astrology reference fixture or reference-runner failure above."
             elif [ "${{ steps.install.outcome }}" = "failure" ]; then
               echo "**Start with:** Python dependency installation/\`requirements-api.txt\`."
             else
-              echo "Python quality checks passed using disposable CI data."
+              echo "Python quality and astrology reference checks passed using disposable CI data."
             fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  packaged-sidecar:
+    name: Windows Packaged Sidecar
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements-api.txt
+
+      - name: Install Node dependencies
+        id: node-install
+        run: npm ci
+
+      - name: Install sidecar dependencies
+        id: python-install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-api.txt
+
+      - name: Build frontend
+        id: build
+        run: npm run build:web
+
+      - name: Build packaged sidecar
+        id: package
+        run: python -m PyInstaller --clean --noconfirm build_sidecar.spec
+
+      - name: Run existing packaged-sidecar smoke
+        id: smoke
+        shell: powershell
+        run: |
+          ./tests/browser_runtime_packaged_smoke.ps1 -RuntimePath ./dist/astro-engine-x86_64-pc-windows-msvc.exe
+
+      - name: Agent handoff summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Windows Packaged Sidecar"
+            echo
+            echo "| Gate | Outcome |"
+            echo "|---|---|"
+            echo "| Node dependencies | ${{ steps.node-install.outcome }} |"
+            echo "| sidecar dependencies | ${{ steps.python-install.outcome }} |"
+            echo "| frontend build | ${{ steps.build.outcome }} |"
+            echo "| PyInstaller sidecar | ${{ steps.package.outcome }} |"
+            echo "| packaged-sidecar smoke | ${{ steps.smoke.outcome }} |"
+            echo
+            echo "### Reproduce on Windows"
+            echo '```powershell'
+            echo 'npm ci'
+            echo 'python -m pip install -r requirements-api.txt'
+            echo 'npm run build:web'
+            echo 'python -m PyInstaller --clean --noconfirm build_sidecar.spec'
+            echo './tests/browser_runtime_packaged_smoke.ps1 -RuntimePath ./dist/astro-engine-x86_64-pc-windows-msvc.exe'
+            echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
   e2e:
     name: E2E
-    needs: [frontend-quality, python-quality]
+    needs: [frontend-quality, python-quality, packaged-sidecar]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:

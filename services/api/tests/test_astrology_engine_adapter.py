@@ -20,8 +20,8 @@ from aurea_api.infrastructure.ephemeris.adapter import (
 )
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
-_BASE_NATAL_SHA256 = "TODO_BASE_NATAL_SHA256"
-_BASE_TRANSIT_SHA256 = "TODO_BASE_TRANSIT_SHA256"
+_BASELINE_PATH = Path(__file__).resolve().parent / "fixtures" / "astrology_base_output_hashes.json"
+_BASELINE = json.loads(_BASELINE_PATH.read_text(encoding="utf-8"))
 _REQUIRED_EPHEMERIS_FILES = ("seas_18.se1", "semo_18.se1", "sepl_18.se1")
 
 
@@ -61,15 +61,20 @@ def _birth() -> BirthData:
     )
 
 
+def test_frozen_output_baseline_is_bound_to_fdm712_base_engine() -> None:
+    assert _BASELINE["base_commit"] == "6ddda7627e9634e91fa303e296dec79fd93b9340"
+    assert _BASELINE["engine_blob"] == "44ba2ee6906ca58a56ab876fb23a417c47f8142e"
+
+
 def test_natal_adapter_matches_frozen_base_output() -> None:
     adapter = SwissEphemerisAstrologyEngine()
-    assert _digest(adapter.natal(_birth())) == _BASE_NATAL_SHA256
+    assert _digest(adapter.natal(_birth())) == _BASELINE["natal_sha256"]
 
 
 def test_transit_adapter_matches_frozen_base_output() -> None:
     adapter = SwissEphemerisAstrologyEngine()
     as_of = datetime(2000, 1, 2, 1, 30, tzinfo=UTC)
-    assert _digest(adapter.transits(_birth(), as_of)) == _BASE_TRANSIT_SHA256
+    assert _digest(adapter.transits(_birth(), as_of)) == _BASELINE["transit_sha256"]
 
 
 def test_adapter_exposes_certified_version_and_real_ephemeris_readiness() -> None:

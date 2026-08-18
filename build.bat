@@ -11,6 +11,32 @@ if not exist ".aurea-build-venv\Scripts\python.exe" (
     exit /b 1
 )
 
+if not exist "services\api\src\aurea_api\domain\astrology\engine.py" (
+    echo ERRO: motor astrologico certificado movido nao encontrado.
+    popd
+    exit /b 1
+)
+if not exist "services\api\src\aurea_api\domain\astrology\governance.py" (
+    echo ERRO: governanca astrologica certificada movida nao encontrada.
+    popd
+    exit /b 1
+)
+if not exist "services\api\ephe\seas_18.se1" (
+    echo ERRO: asset Swiss Ephemeris certificado ausente: services\api\ephe\seas_18.se1
+    popd
+    exit /b 1
+)
+if not exist "services\api\ephe\semo_18.se1" (
+    echo ERRO: asset Swiss Ephemeris certificado ausente: services\api\ephe\semo_18.se1
+    popd
+    exit /b 1
+)
+if not exist "services\api\ephe\sepl_18.se1" (
+    echo ERRO: asset Swiss Ephemeris certificado ausente: services\api\ephe\sepl_18.se1
+    popd
+    exit /b 1
+)
+
 echo [1/4] Gerando a interface web compilada...
 call npm.cmd run build
 if errorlevel 1 (

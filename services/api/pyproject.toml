@@ -10,6 +10,7 @@ requires-python = ">=3.12,<3.13"
 dependencies = [
   "asyncpg==0.31.0",
   "fastapi==0.115.12",
+  "kerykeion==5.8.1",
   "pydantic==2.11.3",
   "PyJWT[crypto]==2.13.0",
   "pyswisseph==2.10.3.2",
@@ -63,6 +64,6 @@ module = [
 ignore_errors = true
 
 [[tool.mypy.overrides]]
-# pyswisseph and optional kerykeion do not publish typing metadata/stubs.
+# pyswisseph and kerykeion do not publish typing metadata/stubs.
 module = ["swisseph", "kerykeion"]
 ignore_missing_imports = true

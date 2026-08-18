@@ -22,6 +22,7 @@ class BirthData:
     latitude: float
     longitude: float
     house_system: str = "P"
+    utc_offset_minutes: int | None = None
 
 
 class AstrologyEngine(Protocol):

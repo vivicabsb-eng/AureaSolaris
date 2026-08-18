@@ -2,11 +2,25 @@
 # Antes de executar este arquivo, rode `npm run build` para gerar `apps/web/dist/index.html`.
 # Depois: pyinstaller build_sidecar.spec
 #
-# Gera um executável standalone do FastAPI sidecar (main_api.py + astro_engine.py)
-# para distribuição junto com o app Tauri.
+# Gera um executável standalone do FastAPI sidecar para distribuição junto com o app Tauri.
 
 import os
 from PyInstaller.utils.hooks import collect_all
+
+PROJECT_ROOT = os.path.abspath('.')
+SERVICE_API_SRC = os.path.join(PROJECT_ROOT, 'services/api/src')
+EPHEMERIS_SRC = os.path.join(PROJECT_ROOT, 'services/api/ephe')
+EPHEMERIS_DEST = 'aurea_api/domain/astrology/ephe'
+REQUIRED_EPHEMERIS_FILES = ('seas_18.se1', 'semo_18.se1', 'sepl_18.se1')
+
+if not os.path.isdir(SERVICE_API_SRC):
+    raise FileNotFoundError(f'Missing Web API source tree: {SERVICE_API_SRC}')
+if not os.path.isdir(EPHEMERIS_SRC):
+    raise FileNotFoundError(f'Missing Swiss Ephemeris directory: {EPHEMERIS_SRC}')
+for filename in REQUIRED_EPHEMERIS_FILES:
+    candidate = os.path.join(EPHEMERIS_SRC, filename)
+    if not os.path.isfile(candidate):
+        raise FileNotFoundError(f'Missing certified Swiss Ephemeris asset: {candidate}')
 
 # `pkg_resources` (loaded by one of the HTTP dependencies) imports the
 # namespace package `backports` at runtime. A hidden import alone does not
@@ -14,22 +28,14 @@ from PyInstaller.utils.hooks import collect_all
 # packaged motor exit before opening its HTTP port on Windows.
 backports_datas, backports_binaries, backports_hiddenimports = collect_all('backports')
 
-# Verificar se o diretório ephe existe para incluir no bundle
-ephe_datas = []
-ephe_path = os.path.join(os.path.dirname(os.path.abspath('.')), 'ephe')
-if os.path.isdir('ephe'):
-    ephe_datas = [('ephe', 'ephe')]
-elif os.path.isdir(ephe_path):
-    ephe_datas = [(ephe_path, 'ephe')]
-
-frontend_datas = [('apps/web/dist', 'apps/web/dist')]
+ephe_datas = [(EPHEMERIS_SRC, EPHEMERIS_DEST)]
+frontend_datas = [(os.path.join(PROJECT_ROOT, 'apps/web/dist'), 'apps/web/dist')]
 
 a = Analysis(
     ['main_api.py'],
-    pathex=[],
+    pathex=[PROJECT_ROOT, SERVICE_API_SRC],
     binaries=backports_binaries,
     datas=[
-        ('astro_engine.py', '.'),        # Engine original (importado como módulo)
         ('local_storage.py', '.'),
         ('browser_workspace.py', '.'),
         ('src-tauri/migrations/private/*.sql', 'migrations/private'),
@@ -41,9 +47,13 @@ a = Analysis(
     ] + ephe_datas + frontend_datas + backports_datas,
     hiddenimports=[
         'astro_engine',
+        'engine_governance',
+        'aurea_api.domain.astrology.engine',
+        'aurea_api.domain.astrology.governance',
+        'aurea_api.domain.astrology.models',
         'local_storage',
         'swisseph',                     # Swiss Ephemeris Python bindings
-        'kerykeion',                    # Fallback engine
+        'kerykeion',                    # Certified fallback engine
         'uvicorn',
         'uvicorn.logging',
         'uvicorn.loops',

@@ -1,0 +1,7 @@
+{
+  "base_commit": "6ddda7627e9634e91fa303e296dec79fd93b9340",
+  "engine_blob": "44ba2ee6906ca58a56ab876fb23a417c47f8142e",
+  "normalization": "remove meta.receipt.calculated_at_utc and meta.governance.receipt.timestamp_utc, then canonical JSON with sorted keys",
+  "natal_sha256": "93601f38fa52354cf72304cfbf51291099339d805ab192a2b69484bd4867ad97",
+  "transit_sha256": "07eb3baf9cb962239d1204a3c13340c9ed0adc2ae74028699c24245b372c430c"
+}
