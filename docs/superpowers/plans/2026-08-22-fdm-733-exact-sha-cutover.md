@@ -4,81 +4,84 @@
 
 **Goal:** Re-accept current upstream `main` on exact-SHA previews, promote that exact object to production, and prove subsequent Git-triggered production redeployment for both Vercel projects.
 
-**Architecture:** Preserve upstream Git objects exactly by importing them into the independent deployment mirror with a guarded GitHub Actions workflow. Advance `preview` first, run the full hosted acceptance, then advance `main`; after healthy production, create a harmless traceability commit under both deploy roots and prove both Vercel projects redeploy automatically from that exact SHA.
+**Architecture:** Preserve upstream Git objects exactly in the independent deployment mirror using the proven GitHub native exact-object/ref path: make the upstream object addressable in the mirror through a temporary import ref, verify object identity and ancestry, then fast-forward the target mirror ref with `force=false`. Advance `preview` first and complete hosted acceptance; only then advance `main`. After healthy production, create a harmless traceability commit under both deploy roots and prove both Vercel projects redeploy automatically from that exact SHA.
 
-**Tech Stack:** Git/GitHub Actions, Vercel Git integration, Supabase/Postgres/RLS, Bash/Python verification scripts, Playwright.
+**Tech Stack:** Git/GitHub ref API, Vercel Git integration, Supabase/Postgres/RLS, Bash/Python verification scripts, Playwright.
 
 **Spec:** `docs/superpowers/specs/2026-08-22-fdm-733-exact-sha-cutover-design.md`
 
 ## Global Constraints
 
 - Upstream `main` is immutable history; never reset, force-push, or rewrite it.
-- Every mirror move must resolve to the exact upstream Git object and must be a verified fast-forward from the expected current mirror ref.
+- Every normal mirror move must resolve to the exact upstream Git object and be a verified fast-forward from the expected current mirror ref with `force=false`.
 - Production remains untouched until a fresh FDM-732-equivalent preview gate passes against the exact current upstream `main` SHA.
 - Never record passwords, JWTs, service keys, Vercel bypass values, or private birth payloads.
-- Stop on unexplained ref divergence, exact-SHA mismatch, unsafe provider state, failed hosted acceptance, or a missing mandatory secure preview credential source.
+- Stop on unexplained ref divergence, exact-SHA mismatch, unsafe provider state, or failed hosted acceptance.
 - Provider/manual Vercel redeploy is not valid evidence for the automatic-redeploy proof.
+- Normal rollback must not rewind upstream or mirror Git refs. Use recorded prior deployments for immediate traffic rollback and a forward revert commit for Git-state rollback.
 
 ---
 
-### Task 1: Import current upstream `main` into mirror `preview`
+### Task 1: Import current upstream `main` into mirror `preview` — completed
 
 **Files:**
-- Create in deployment mirror control branch: `.github/workflows/fdm-733-mirror-preview.yml`
-- Evidence only in upstream FDM-733 branch: `docs/operations/deployments/2026-08-22-fdm-733.md`
+- Evidence: `docs/operations/deployments/2026-08-22-fdm-733.md`
 
 **Interfaces:**
-- Consumes: upstream `main=d578067e3bdaedbd4f81a9ef481b6a22b856bc6d`, mirror `preview=33739cba13c1779e3cb5cf602ebb3a41240df724`.
-- Produces: mirror `preview=d578067e3bdaedbd4f81a9ef481b6a22b856bc6d` without recreating the commit object.
+- Consumed: upstream `main=d578067e3bdaedbd4f81a9ef481b6a22b856bc6d`, mirror `preview=33739cba13c1779e3cb5cf602ebb3a41240df724`.
+- Produced: mirror `preview=d578067e3bdaedbd4f81a9ef481b6a22b856bc6d` without recreating the commit object.
 
-- [ ] **Step 1: Re-read upstream and mirror refs and compare ancestry.**
+- [x] **Step 1: Re-read upstream and mirror refs and compare ancestry.**
 
-Run connector-equivalent checks for upstream `main`, mirror `preview`, and `33739cba...d578067e`; expected result is upstream unchanged, mirror unchanged, and accepted candidate an ancestor of current upstream.
+Verified the accepted FDM-732 candidate is an ancestor of current upstream `main` and the delta contains repository/verification/CI history rather than new application runtime source.
 
-- [ ] **Step 2: Create the guarded exact-object workflow on an isolated deployment-mirror branch.**
+- [x] **Step 2: Import the exact upstream object into the mirror with the proven native ref operation.**
 
-The workflow must initialize a temporary Git repository, fetch public upstream `main`, assert `FETCH_HEAD` equals `d578067...`, fetch mirror `preview`, assert it equals `33739cba...`, require `git merge-base --is-ancestor`, push the fetched upstream object directly to `refs/heads/preview`, and verify `git ls-remote` returns the expected SHA. It must use `permissions: contents: write`, never use `--force`, and never print credentials.
+Created temporary mirror ref `fdm-733/import-d578067` directly at the exact upstream SHA. After import, fetching the commit from `fernandodamaso/AureaSolaris-deploy` reported the same SHA, tree, parents, merge message, and verified signature as upstream.
 
-- [ ] **Step 3: Verify the workflow moved only mirror `preview`.**
+An earlier isolated GitHub Actions workflow draft was prepared before this native path was proven. It did not move `preview` and is historical only; do not use it as the canonical production mechanism.
 
-Expected: mirror `preview=d578067...`; mirror `main=6ddda762...`; upstream `main=d578067...`.
+- [x] **Step 3: Fast-forward only mirror `preview`.**
 
-- [ ] **Step 4: Verify both Vercel projects created READY preview deployments for exact SHA.**
+Updated mirror `preview` from `33739cba...` to `d578067...` with `force=false`. Verified mirror `main` remained `6ddda762...` and upstream `main` remained `d578067...`.
 
-Expected metadata: `githubCommitRef=preview`, `githubCommitSha=d578067...`, `target=null` for both `aurea-solaris` and `aurea-solaris-api`.
+- [x] **Step 4: Verify both Vercel projects created READY preview deployments for exact SHA.**
 
-### Task 2: Run fresh exact-SHA preview acceptance
+Verified web `dpl_CXhGnvxyFqN3M3JFsY5dJx9tyftB` and API `dpl_CDyhw18ea3EvLs3kAKi6r1qcrbeg` report Git ref `preview`, source Git, and exact SHA `d578067...`.
+
+### Task 2: Run fresh exact-SHA preview acceptance — completed
 
 **Files:**
 - Read: `scripts/verify_preview.sh`
 - Read: `scripts/verify_supabase_environment.sh`
 - Read: `apps/web/e2e/specs/ownership.spec.ts`
-- Update evidence: `docs/operations/deployments/2026-08-22-fdm-733.md`
+- Evidence: `docs/operations/deployments/2026-08-22-fdm-733.md`
 
 **Interfaces:**
-- Consumes: matching READY preview web/API deployments for `d578067...` plus approved preview-only credentials.
-- Produces: a green FDM-732-equivalent acceptance result for the exact current upstream object.
+- Consumed: matching READY preview web/API deployments for `d578067...` plus disposable preview-only credentials/protection access held outside Git/Linear.
+- Produced: green FDM-732-equivalent acceptance for the exact current upstream object, followed by cleanup.
 
-- [ ] **Step 1: Verify automatable provider boundaries.**
+- [x] **Step 1: Verify automatable provider boundaries.**
 
-Check preview Supabase health, migration, RLS/policies, public-sign-up-disabled state, expected user/isolation aggregates, and exact web/API Vercel SHA equality.
+Preview and production Supabase health, migration, RLS/policies, sign-up-disabled state, Auth counts, and exact web/API Vercel SHA equality passed.
 
-- [ ] **Step 2: Verify API preview health/security boundaries.**
+- [x] **Step 2: Verify API preview health/security boundaries.**
 
-Check immutable exact deployment `/health`, `/ready`, and unauthenticated private routes with the protected-deployment access mechanism available to the authorized Vercel connector.
+Final `smoke_verified_preview_api.sh` passed health/readiness, unauthenticated `401`, authenticated profile, astrology calculation, and certified Swiss Ephemeris metadata.
 
-- [ ] **Step 3: Run the private hosted browser ownership flow using only an approved secure credential source.**
+- [x] **Step 3: Run the private hosted browser ownership flow.**
 
-Required flow: login → onboarding/profile persistence → natal receipt → transit receipt → reload persistence → logout, plus unauthenticated `401`, cross-owner `404`, disabled sign-up, no localhost/mixed-content/production endpoint traffic, and no console/page errors. If the secure preview credential source is unavailable, stop here before any production mutation; never request a password/token in chat.
+Final `scripts/verify_preview.sh` passed login/onboarding, profile and birth persistence/reload, natal and transit receipts, unauthenticated `401`, cross-owner `404`, disabled sign-up, network isolation, logout, and zero browser/page errors. Stable alias binding was verified before and after the run.
 
-- [ ] **Step 4: Clean up temporary preview identities/credentials and re-verify provider counts/policies.**
+An earlier attempt failed on a CORS boundary and remains superseded audit history; it is not the accepted result.
 
-Expected: temporary identities removed and no automation bypass value left behind.
+- [x] **Step 4: Clean up temporary preview identities/credentials and re-verify provider counts/policies.**
+
+Both disposable preview Auth users were deleted, both temporary Vercel bypass values were revoked, bypass counts returned to web `0`/API `0`, preview Auth returned to `39/39` confirmed, production remained `1/1` confirmed, and the Supabase environment verifier passed.
 
 ### Task 3: Promote accepted exact SHA to production
 
 **Files:**
-- Create in deployment mirror control branch: `.github/workflows/fdm-733-mirror-main.yml`
 - Update evidence: `docs/operations/deployments/2026-08-22-fdm-733.md`
 
 **Interfaces:**
@@ -87,15 +90,15 @@ Expected: temporary identities removed and no automation bypass value left behin
 
 - [ ] **Step 1: Re-read upstream `main` and reject drift.**
 
-Expected upstream SHA remains the accepted preview SHA.
+Expected upstream SHA remains `d578067e3bdaedbd4f81a9ef481b6a22b856bc6d`. If it moved, stop and establish a fresh preview candidate; do not carry the existing acceptance forward.
 
-- [ ] **Step 2: Guardedly import/fast-forward mirror `main` to the exact accepted object.**
+- [ ] **Step 2: Import/verify the accepted object in the deployment mirror and fast-forward mirror `main`.**
 
-Use the same exact-object workflow pattern, asserting the expected current mirror `main=6ddda762...`; no force push.
+Use the same proven native exact-object/ref pattern from Task 1. The object is already addressable in the mirror via the preview/import work, but still verify its identity and expected ancestry. Assert current mirror `main=6ddda762...`, then update mirror `main` to the accepted SHA with `force=false`.
 
 - [ ] **Step 3: Require new automatic production deployments for both Vercel projects.**
 
-Expected both deployments report `target=production`, ref `main`, and the exact accepted SHA; do not use manual redeploy.
+Expected both deployments report `target=production`, ref `main`, source Git, and the exact accepted SHA. Do not use manual/provider redeploy as promotion evidence.
 
 - [ ] **Step 4: Verify API before frontend canonical acceptance.**
 
@@ -124,15 +127,15 @@ Each marker contains only `FDM-733 automatic redeploy proof 2026-08-22` plus no 
 
 Confirm the commit is a normal child of the accepted production candidate and repository checks remain green.
 
-- [ ] **Step 3: Guardedly mirror the new exact object to deployment `main`.**
+- [ ] **Step 3: Mirror the new exact object to deployment `main` using the proven native ref path.**
 
-Assert expected current mirror `main` equals the first accepted production candidate before the fast-forward.
+Make the new upstream object addressable in the mirror through a temporary import ref if necessary, verify object identity and ancestry, assert expected current mirror `main` equals the first accepted production candidate, then fast-forward `main` with `force=false`.
 
 - [ ] **Step 4: Prove both new production deployments were Git-triggered.**
 
-Require distinct new deployment IDs for web and API, `target=production`, ref `main`, exact traceability SHA, healthy API, and canonical aliases updated. Reject any deployment whose metadata indicates provider/manual redeploy.
+Require distinct new deployment IDs for web and API, `target=production`, ref `main`, source Git, exact traceability SHA, healthy API, and canonical aliases updated. Reject any deployment whose metadata indicates provider/manual redeploy.
 
-### Task 5: Finalize sanitized evidence and Linear
+### Task 5: Finalize sanitized evidence, rollback posture, and Linear
 
 **Files:**
 - Update: `docs/operations/deployments/2026-08-22-fdm-733.md`
@@ -141,9 +144,11 @@ Require distinct new deployment IDs for web and API, `target=production`, ref `m
 - Consumes: all verified preview, production, automatic-redeploy, and rollback evidence.
 - Produces: auditable sanitized record and a truthful FDM-733 final status.
 
-- [ ] **Step 1: Record rollback targets and all accepted SHAs/deployment IDs.**
+- [ ] **Step 1: Record rollback targets and forward-only rollback strategy.**
 
-Include pre-promotion mirror `main=6ddda762...`, prior web `dpl_53xYnHFvT7yhx14TdiPQd5gLomgx`, prior API `dpl_GtHHFxzbWcP4M4MzjbLxuY7Wx8g6`, accepted preview/production deployment IDs, traceability SHA, validation commands/results, and no credentials/private payloads.
+Include pre-promotion mirror `main=6ddda762...`, prior web `dpl_53xYnHFvT7yhx14TdiPQd5gLomgx`, prior API `dpl_GtHHFxzbWcP4M4MzjbLxuY7Wx8g6`, accepted preview/production deployment IDs, traceability SHA, validation results, and no credentials/private payloads.
+
+If immediate traffic rollback is required after promotion, use the recorded prior Vercel deployments as the service rollback targets without rewriting Git refs. If Git desired state must be restored, create an explicit forward revert commit on upstream `main`, mirror that new exact object with `force=false`, and let Git integration deploy it. A destructive mirror-ref rewind is outside the normal FDM-733 procedure and requires separate exceptional authorization.
 
 - [ ] **Step 2: Run final ref/SHA/provider verification.**
 
