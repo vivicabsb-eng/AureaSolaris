@@ -88,15 +88,15 @@ Both disposable preview Auth users were deleted, both temporary Vercel bypass va
 - Consumes: accepted preview candidate equal to still-current upstream `main`.
 - Produces: mirror `main`, web production deployment, and API production deployment at the same exact SHA.
 
-- [ ] **Step 1: Re-read upstream `main` and reject drift.**
+- [x] **Step 1: Re-read upstream `main` and reject drift.**
 
 Expected upstream SHA remains `d578067e3bdaedbd4f81a9ef481b6a22b856bc6d`. If it moved, stop and establish a fresh preview candidate; do not carry the existing acceptance forward.
 
-- [ ] **Step 2: Import/verify the accepted object in the deployment mirror and fast-forward mirror `main`.**
+- [x] **Step 2: Import/verify the accepted object in the deployment mirror and fast-forward mirror `main`.**
 
 Use the same proven native exact-object/ref pattern from Task 1. The object is already addressable in the mirror via the preview/import work, but still verify its identity and expected ancestry. Assert current mirror `main=6ddda762...`, then update mirror `main` to the accepted SHA with `force=false`.
 
-- [ ] **Step 3: Require new automatic production deployments for both Vercel projects.**
+- [x] **Step 3: Require new automatic production deployments for both Vercel projects.**
 
 Expected both deployments report `target=production`, ref `main`, source Git, and the exact accepted SHA. Do not use manual/provider redeploy as promotion evidence.
 
@@ -104,9 +104,13 @@ Expected both deployments report `target=production`, ref `main`, source Git, an
 
 Check canonical API `/health` and `/ready`, unauthenticated security negative, certified astrology calculation where the approved smoke mechanism permits it, production Supabase identity/migration/RLS/Auth state, and exact SHA equality.
 
+Completed during production recovery except the certified calculation proof: `/health` 200, `/ready` 503 fail-closed as designed, unauthenticated negative 401, Supabase identity/migration/RLS/Auth state verified by the environment verifier, and exact-SHA equality established on the original Git-sourced promotion pair after a real database credential probe passed. The certified astrology calculation is covered by the owner-login attestation gate recorded in Linear.
+
 - [ ] **Step 5: Verify canonical frontend and final owner-auth boundary.**
 
 Check canonical web 200/login rendering and environment isolation. If no approved secure owner session exists, obtain the single human owner-login attestation permitted by FDM-733 without asking for credentials in chat.
+
+Canonical web 200 with production-only origins verified during recovery; the human owner-login attestation result is recorded in Linear and gates Done.
 
 ### Task 4: Prove automatic Git-triggered production redeploy
 
