@@ -1,6 +1,7 @@
 name: FDM-733 Vercel OIDC Probe
 
 on:
+  pull_request:
   push:
     branches:
       - fernandoyarrum/fdm-733-p47-re-verify-current-main-promote-the-exact-sha-and-prove
@@ -10,7 +11,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: fdm-733-vercel-oidc-probe
+  group: fdm-733-vercel-oidc-probe-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
