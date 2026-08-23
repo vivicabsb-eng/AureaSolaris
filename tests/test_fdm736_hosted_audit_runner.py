@@ -97,8 +97,6 @@ def _decrypt(private_key_path: Path, sealed: dict[str, str]) -> dict[str, str]:
 
 
 def _curl_cookie_jar(share_url: str, output: Path) -> None:
-    # The API deployment has no root route, so the share-link handshake may
-    # legitimately end at HTTP 404 after setting the protected-session cookie.
     subprocess.run(
         [
             "curl",
@@ -183,6 +181,35 @@ def _api_json(
         return exc.code, json.loads(raw) if raw else {}
 
 
+def _print_npm_audit(label: str, *extra: str) -> None:
+    result = subprocess.run(
+        ["npm", "audit", "--json", *extra],
+        cwd=REPO_ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    payload = json.loads(result.stdout)
+    metadata = payload.get("metadata", {}).get("vulnerabilities", {})
+    print(f"FDM736_NPM_AUDIT {label} counts={json.dumps(metadata, sort_keys=True)}", flush=True)
+    vulnerabilities = payload.get("vulnerabilities", {})
+    for name in sorted(vulnerabilities):
+        item = vulnerabilities[name]
+        via = item.get("via", [])
+        advisory_names = sorted(
+            str(entry.get("title") or entry.get("name") or "transitive")
+            for entry in via
+            if isinstance(entry, dict)
+        )
+        print(
+            "FDM736_NPM_AUDIT_ITEM "
+            f"scope={label} name={name} severity={item.get('severity')} direct={item.get('isDirect')} "
+            f"range={item.get('range')} fix={json.dumps(item.get('fixAvailable'), sort_keys=True)} "
+            f"advisories={json.dumps(advisory_names)}",
+            flush=True,
+        )
+
+
 class Fdm736HostedPreviewAuditRunnerTests(unittest.TestCase):
     @unittest.skipUnless(os.environ.get("GITHUB_HEAD_REF") == RUNNER_BRANCH, "disposable FDM-736 runner only")
     def test_exact_hosted_preview_private_flow(self) -> None:
@@ -232,17 +259,30 @@ class Fdm736HostedPreviewAuditRunnerTests(unittest.TestCase):
             self.assertEqual(status, 401)
 
             _run(["npm", "ci"])
+            _print_npm_audit("all")
+            _print_npm_audit("production", "--omit=dev")
             _run(["npx", "playwright", "install", "--with-deps", "chromium"])
 
             config = REPO_ROOT / "apps" / "web" / "e2e" / "playwright.config.ts"
-            original = config.read_text(encoding="utf-8")
-            needle = "  use: {\n    baseURL,\n"
-            if needle not in original:
-                raise RuntimeError("Playwright config shape changed unexpectedly.")
+            helper = REPO_ROOT / "apps" / "web" / "e2e" / "helpers" / "app.ts"
+            original_config = config.read_text(encoding="utf-8")
+            original_helper = helper.read_text(encoding="utf-8")
+            config_needle = "  use: {\n    baseURL,\n"
+            helper_needle = "  await page.goto('/');\n"
+            if config_needle not in original_config or helper_needle not in original_helper:
+                raise RuntimeError("Playwright hosted-audit patch target changed unexpectedly.")
             config.write_text(
-                original.replace(
-                    needle,
+                original_config.replace(
+                    config_needle,
                     f"  use: {{\n    baseURL,\n    storageState: {json.dumps(str(storage_state))},\n",
+                    1,
+                ),
+                encoding="utf-8",
+            )
+            helper.write_text(
+                original_helper.replace(
+                    helper_needle,
+                    "  await page.goto(process.env.AUREA_E2E_WEB_SHARE_URL ?? '/');\n",
                     1,
                 ),
                 encoding="utf-8",
@@ -252,6 +292,7 @@ class Fdm736HostedPreviewAuditRunnerTests(unittest.TestCase):
                 {
                     "AUREA_E2E_URL": WEB_URL,
                     "AUREA_E2E_API_URL": API_URL,
+                    "AUREA_E2E_WEB_SHARE_URL": payload["web_share_url"],
                     "AUREA_E2E_EMAIL": payload["primary_email"],
                     "AUREA_E2E_PASSWORD": payload["primary_password"],
                     "AUREA_E2E_SECOND_JWT": payload["second_jwt"],
@@ -274,7 +315,8 @@ class Fdm736HostedPreviewAuditRunnerTests(unittest.TestCase):
                     env=env,
                 )
             finally:
-                config.write_text(original, encoding="utf-8")
+                config.write_text(original_config, encoding="utf-8")
+                helper.write_text(original_helper, encoding="utf-8")
 
             status, natal = _api_json(
                 "/v1/astrology/natal",
