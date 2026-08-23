@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import base64
-import http.cookiejar
 import json
 import os
 import subprocess
@@ -11,6 +10,7 @@ import unittest
 import urllib.error
 import urllib.request
 from pathlib import Path
+from uuid import uuid4
 
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
@@ -18,10 +18,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RUNNER_BRANCH = "fdm-736/hosted-e2e-runner-v2"
-INPUT_URL = (
-    "https://api.github.com/repos/fernandodamaso/AureaSolaris-deploy/contents/"
-    ".fdm-736-hosted-input.json?ref=fdm-736%2Fhosted-e2e-input"
-)
+HELPER_URL = "https://rosklqnnbmhowohoyboj.supabase.co/functions/v1/fdm-736-audit-helper"
 WEB_URL = "https://aurea-solaris-f0whqpl0m-fernando-damasos-projects.vercel.app"
 API_URL = "https://aurea-solaris-4lxgl66k1-fernando-damasos-projects.vercel.app"
 PRODUCTION_API = "https://aurea-solaris-api.vercel.app"
@@ -37,17 +34,32 @@ def _mask(value: str) -> None:
     print(f"::add-mask::{value}", flush=True)
 
 
-def _wait_for_sealed_input(timeout_s: float = 480.0) -> dict[str, str]:
+def _helper(body: dict[str, str]) -> tuple[int, dict]:
+    request = urllib.request.Request(
+        HELPER_URL,
+        data=json.dumps(body).encode("utf-8"),
+        method="POST",
+        headers={"Content-Type": "application/json", "Accept": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=20) as response:
+            raw = response.read().decode("utf-8")
+            return response.status, json.loads(raw) if raw else {}
+    except urllib.error.HTTPError as exc:
+        raw = exc.read().decode("utf-8")
+        return exc.code, json.loads(raw) if raw else {}
+
+
+def _wait_for_sealed_input(run_id: str, timeout_s: float = 420.0) -> dict[str, str]:
     deadline = time.time() + timeout_s
     while time.time() < deadline:
-        request = urllib.request.Request(INPUT_URL, headers={"Accept": "application/vnd.github+json"})
-        try:
-            with urllib.request.urlopen(request, timeout=15) as response:
-                payload = json.load(response)
-            return json.loads(base64.b64decode(payload["content"]))
-        except urllib.error.HTTPError as exc:
-            if exc.code != 404:
-                raise
+        status, payload = _helper({"action": "fetch-payload", "run_id": run_id})
+        if status == 200 and payload.get("ready") is True:
+            sealed = payload.get("sealed")
+            if isinstance(sealed, dict):
+                return sealed
+        elif status != 202:
+            raise RuntimeError(f"Unexpected audit helper fetch status: {status}")
         time.sleep(5)
     raise RuntimeError("Timed out waiting for encrypted FDM-736 hosted-audit input.")
 
@@ -147,7 +159,14 @@ def _cookie_header(path: Path) -> str:
     return "; ".join(values)
 
 
-def _api_json(path: str, *, cookie: str, jwt: str | None = None, method: str = "GET", body: bytes | None = None) -> tuple[int, dict]:
+def _api_json(
+    path: str,
+    *,
+    cookie: str,
+    jwt: str | None = None,
+    method: str = "GET",
+    body: bytes | None = None,
+) -> tuple[int, dict]:
     headers = {"Accept": "application/json", "Cookie": cookie}
     if jwt:
         headers["Authorization"] = f"Bearer {jwt}"
@@ -181,11 +200,16 @@ class Fdm736HostedPreviewAuditRunnerTests(unittest.TestCase):
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
-            print("FDM736_PUBLIC_KEY_BEGIN", flush=True)
-            print(public_key.read_text(encoding="utf-8").strip(), flush=True)
-            print("FDM736_PUBLIC_KEY_END", flush=True)
+            run_id = str(uuid4())
+            public_key_pem = public_key.read_text(encoding="utf-8")
+            status, registered = _helper(
+                {"action": "register-key", "run_id": run_id, "public_key_pem": public_key_pem}
+            )
+            self.assertEqual(status, 200)
+            self.assertTrue(registered.get("registered"))
+            print(f"FDM736_HANDOFF_RUN_ID={run_id}", flush=True)
 
-            payload = _decrypt(private_key, _wait_for_sealed_input())
+            payload = _decrypt(private_key, _wait_for_sealed_input(run_id))
             web_jar = temp_path / "web.cookies"
             api_jar = temp_path / "api.cookies"
             _curl_cookie_jar(payload["web_share_url"], web_jar)
