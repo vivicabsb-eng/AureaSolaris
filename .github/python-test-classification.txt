@@ -2,6 +2,7 @@
 # FDM-734 leaves only supported cross-platform Web V1, engine, editorial,
 # hosted-verification, dependency-security, and runtime-retirement contracts in the root Python suite.
 # python-quality tests run with disposable CI process state only.
+# FDM-736 temporary runner remains non-mergeable and preview-only.
 
 python-quality tests/test_dependency_security_floor.py
 python-quality tests/test_editorial_importer.py
