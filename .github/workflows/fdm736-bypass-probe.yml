@@ -1,0 +1,28 @@
+name: FDM-736 Bypass Secret Probe
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    if: github.head_ref == 'fdm-736/hosted-e2e-runner-v2'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    env:
+      WEB_BYPASS: ${{ secrets.AUREA_VERCEL_WEB_PROTECTION_BYPASS }}
+      API_BYPASS: ${{ secrets.AUREA_VERCEL_API_PROTECTION_BYPASS }}
+    steps:
+      - name: Report expected secret availability without values
+        shell: bash
+        run: |
+          if [ -n "$WEB_BYPASS" ]; then web=true; else web=false; fi
+          if [ -n "$API_BYPASS" ]; then api=true; else api=false; fi
+          echo "FDM736_WEB_BYPASS_PRESENT=$web"
+          echo "FDM736_API_BYPASS_PRESENT=$api"
+          if [ "$web" != true ] || [ "$api" != true ]; then
+            echo "::error::Expected protected-preview automation bypass secrets are not both available to this workflow."
+            exit 1
+          fi
