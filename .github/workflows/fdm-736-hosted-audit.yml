@@ -1,0 +1,189 @@
+name: FDM-736 disposable hosted audit
+
+on:
+  push:
+    branches:
+      - fdm-736/hosted-e2e-runner
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fdm-736-disposable-hosted-audit
+  cancel-in-progress: false
+
+jobs:
+  hosted-audit:
+    if: ${{ !contains(github.event.head_commit.message, '[audit-input]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Generate ephemeral handoff key
+        id: key
+        shell: bash
+        run: |
+          set -euo pipefail
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out /tmp/fdm736-private.pem >/dev/null 2>&1
+          openssl pkey -in /tmp/fdm736-private.pem -pubout -out /tmp/fdm736-public.pem >/dev/null 2>&1
+          echo 'FDM736_PUBLIC_KEY_BEGIN'
+          cat /tmp/fdm736-public.pem
+          echo 'FDM736_PUBLIC_KEY_END'
+
+      - name: Wait for encrypted audit input
+        id: input
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          api='https://api.github.com/repos/vivicabsb-eng/AureaSolaris/contents/.fdm-736-hosted-input.json?ref=fdm-736%2Fhosted-e2e-runner'
+          for attempt in $(seq 1 90); do
+            code="$(curl -sS -o /tmp/input-response.json -w '%{http_code}' \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H 'Accept: application/vnd.github+json' \
+              "$api")"
+            if [ "$code" = 200 ]; then
+              python - <<'PY'
+import base64, json
+payload = json.load(open('/tmp/input-response.json', encoding='utf-8'))
+raw = base64.b64decode(payload['content'])
+open('/tmp/fdm736-input.json', 'wb').write(raw)
+PY
+              echo 'Encrypted audit input received.'
+              exit 0
+            fi
+            if [ "$code" != 404 ]; then
+              echo "Unexpected GitHub input lookup status: $code" >&2
+              exit 1
+            fi
+            sleep 5
+          done
+          echo 'Timed out waiting for encrypted audit input.' >&2
+          exit 1
+
+      - name: Decrypt ephemeral input in memory
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet 'cryptography>=45,<46'
+          python - <<'PY'
+import base64, json, os
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+sealed = json.load(open('/tmp/fdm736-input.json', encoding='utf-8'))
+private_key = serialization.load_pem_private_key(open('/tmp/fdm736-private.pem','rb').read(), password=None)
+aes_key = private_key.decrypt(
+    base64.b64decode(sealed['wrapped_key']),
+    padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None),
+)
+plaintext = AESGCM(aes_key).decrypt(
+    base64.b64decode(sealed['nonce']),
+    base64.b64decode(sealed['ciphertext']),
+    b'FDM-736-hosted-audit',
+)
+payload = json.loads(plaintext)
+required = ('web_share_url','api_share_url','second_jwt')
+for name in required:
+    value = payload.get(name)
+    if not isinstance(value, str) or not value:
+        raise SystemExit(f'Missing encrypted field: {name}')
+    print(f'::add-mask::{value}')
+with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as env:
+    env.write(f"FDM736_WEB_SHARE_URL={payload['web_share_url']}\n")
+    env.write(f"FDM736_API_SHARE_URL={payload['api_share_url']}\n")
+    env.write(f"AUREA_E2E_SECOND_JWT={payload['second_jwt']}\n")
+PY
+          rm -f /tmp/fdm736-input.json
+
+      - name: Checkout exact trusted candidate
+        uses: actions/checkout@v4
+        with:
+          ref: e8bd14e45b6813b699dbf237a39f7cf34643259d
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install trusted dependencies and Chromium
+        run: |
+          set -euo pipefail
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Materialize temporary Vercel share cookies
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --max-time 45 \
+            --cookie-jar /tmp/web.cookies "$FDM736_WEB_SHARE_URL" -o /dev/null
+          curl --fail --silent --show-error --location --max-time 45 \
+            --cookie-jar /tmp/api.cookies "$FDM736_API_SHARE_URL" -o /dev/null
+          python - <<'PY'
+import json
+from pathlib import Path
+
+cookies = []
+for cookie_file in ('/tmp/web.cookies','/tmp/api.cookies'):
+    for raw in Path(cookie_file).read_text(encoding='utf-8').splitlines():
+        http_only = raw.startswith('#HttpOnly_')
+        if raw.startswith('#HttpOnly_'):
+            raw = raw[len('#HttpOnly_'):]
+        elif raw.startswith('#') or not raw.strip():
+            continue
+        parts = raw.split('\t')
+        if len(parts) != 7:
+            continue
+        domain, _include_subdomains, path, secure, expires, name, value = parts
+        cookie = {
+            'name': name,
+            'value': value,
+            'domain': domain,
+            'path': path,
+            'expires': int(expires) if expires.isdigit() else -1,
+            'httpOnly': http_only,
+            'secure': secure.upper() == 'TRUE',
+        }
+        cookies.append(cookie)
+        print(f'::add-mask::{value}')
+Path('/tmp/fdm736-storage-state.json').write_text(json.dumps({'cookies': cookies, 'origins': []}), encoding='utf-8')
+if len(cookies) < 2:
+    raise SystemExit('Expected protected-session cookies for both Vercel preview origins.')
+PY
+          python - <<'PY'
+from pathlib import Path
+path = Path('apps/web/e2e/playwright.config.ts')
+text = path.read_text(encoding='utf-8')
+needle = '  use: {\n    baseURL,\n'
+if needle not in text:
+    raise SystemExit('Playwright config shape changed unexpectedly.')
+text = text.replace(needle, "  use: {\n    baseURL,\n    storageState: '/tmp/fdm736-storage-state.json',\n", 1)
+path.write_text(text, encoding='utf-8')
+PY
+
+      - name: Verify exact hosted browser ownership flow
+        env:
+          AUREA_E2E_URL: https://aurea-solaris-f0whqpl0m-fernando-damasos-projects.vercel.app
+          AUREA_E2E_API_URL: https://aurea-solaris-4lxgl66k1-fernando-damasos-projects.vercel.app
+          AUREA_E2E_EMAIL: ${{ secrets.AUREA_PREVIEW_E2E_EMAIL }}
+          AUREA_E2E_PASSWORD: ${{ secrets.AUREA_PREVIEW_E2E_PASSWORD }}
+          AUREA_PRODUCTION_API_URL: https://aurea-solaris-api.vercel.app
+          AUREA_PRODUCTION_SUPABASE_URL: https://tgpcpxqqusehssaihvcp.supabase.co
+          CI: 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$AUREA_E2E_EMAIL"
+          test -n "$AUREA_E2E_PASSWORD"
+          test -n "$AUREA_E2E_SECOND_JWT"
+          npx playwright test apps/web/e2e/specs/ownership.spec.ts \
+            --config=apps/web/e2e/playwright.config.ts --project=chromium --workers=1
+
+      - name: Sanitized audit result
+        if: always()
+        shell: bash
+        run: |
+          echo 'FDM-736 hosted audit completed. Inspect step outcomes; no credential values are printed by this workflow.'
