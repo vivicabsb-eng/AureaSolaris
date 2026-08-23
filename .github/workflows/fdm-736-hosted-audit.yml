@@ -4,6 +4,15 @@ on:
   push:
     branches:
       - fdm-736/hosted-e2e-runner
+    paths:
+      - .github/workflows/fdm-736-hosted-audit.yml
+      - .fdm-736-hosted-runner-trigger
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/fdm-736-hosted-audit.yml
+      - .fdm-736-hosted-runner-trigger
 
 permissions:
   contents: read
@@ -14,7 +23,6 @@ concurrency:
 
 jobs:
   hosted-audit:
-    if: ${{ !contains(github.event.head_commit.message, '[audit-input]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -71,21 +79,12 @@ import base64, json, os
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-
 sealed = json.load(open('/tmp/fdm736-input.json', encoding='utf-8'))
 private_key = serialization.load_pem_private_key(open('/tmp/fdm736-private.pem','rb').read(), password=None)
-aes_key = private_key.decrypt(
-    base64.b64decode(sealed['wrapped_key']),
-    padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None),
-)
-plaintext = AESGCM(aes_key).decrypt(
-    base64.b64decode(sealed['nonce']),
-    base64.b64decode(sealed['ciphertext']),
-    b'FDM-736-hosted-audit',
-)
+aes_key = private_key.decrypt(base64.b64decode(sealed['wrapped_key']), padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None))
+plaintext = AESGCM(aes_key).decrypt(base64.b64decode(sealed['nonce']), base64.b64decode(sealed['ciphertext']), b'FDM-736-hosted-audit')
 payload = json.loads(plaintext)
-required = ('web_share_url','api_share_url','second_jwt')
-for name in required:
+for name in ('web_share_url','api_share_url','second_jwt'):
     value = payload.get(name)
     if not isinstance(value, str) or not value:
         raise SystemExit(f'Missing encrypted field: {name}')
@@ -118,14 +117,11 @@ PY
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error --location --max-time 45 \
-            --cookie-jar /tmp/web.cookies "$FDM736_WEB_SHARE_URL" -o /dev/null
-          curl --fail --silent --show-error --location --max-time 45 \
-            --cookie-jar /tmp/api.cookies "$FDM736_API_SHARE_URL" -o /dev/null
+          curl --fail --silent --show-error --location --max-time 45 --cookie-jar /tmp/web.cookies "$FDM736_WEB_SHARE_URL" -o /dev/null
+          curl --fail --silent --show-error --location --max-time 45 --cookie-jar /tmp/api.cookies "$FDM736_API_SHARE_URL" -o /dev/null
           python - <<'PY'
 import json
 from pathlib import Path
-
 cookies = []
 for cookie_file in ('/tmp/web.cookies','/tmp/api.cookies'):
     for raw in Path(cookie_file).read_text(encoding='utf-8').splitlines():
@@ -138,16 +134,7 @@ for cookie_file in ('/tmp/web.cookies','/tmp/api.cookies'):
         if len(parts) != 7:
             continue
         domain, _include_subdomains, path, secure, expires, name, value = parts
-        cookie = {
-            'name': name,
-            'value': value,
-            'domain': domain,
-            'path': path,
-            'expires': int(expires) if expires.isdigit() else -1,
-            'httpOnly': http_only,
-            'secure': secure.upper() == 'TRUE',
-        }
-        cookies.append(cookie)
+        cookies.append({'name': name, 'value': value, 'domain': domain, 'path': path, 'expires': int(expires) if expires.isdigit() else -1, 'httpOnly': http_only, 'secure': secure.upper() == 'TRUE'})
         print(f'::add-mask::{value}')
 Path('/tmp/fdm736-storage-state.json').write_text(json.dumps({'cookies': cookies, 'origins': []}), encoding='utf-8')
 if len(cookies) < 2:
@@ -160,8 +147,7 @@ text = path.read_text(encoding='utf-8')
 needle = '  use: {\n    baseURL,\n'
 if needle not in text:
     raise SystemExit('Playwright config shape changed unexpectedly.')
-text = text.replace(needle, "  use: {\n    baseURL,\n    storageState: '/tmp/fdm736-storage-state.json',\n", 1)
-path.write_text(text, encoding='utf-8')
+path.write_text(text.replace(needle, "  use: {\n    baseURL,\n    storageState: '/tmp/fdm736-storage-state.json',\n", 1), encoding='utf-8')
 PY
 
       - name: Verify exact hosted browser ownership flow
@@ -179,11 +165,8 @@ PY
           test -n "$AUREA_E2E_EMAIL"
           test -n "$AUREA_E2E_PASSWORD"
           test -n "$AUREA_E2E_SECOND_JWT"
-          npx playwright test apps/web/e2e/specs/ownership.spec.ts \
-            --config=apps/web/e2e/playwright.config.ts --project=chromium --workers=1
+          npx playwright test apps/web/e2e/specs/ownership.spec.ts --config=apps/web/e2e/playwright.config.ts --project=chromium --workers=1
 
       - name: Sanitized audit result
         if: always()
-        shell: bash
-        run: |
-          echo 'FDM-736 hosted audit completed. Inspect step outcomes; no credential values are printed by this workflow.'
+        run: echo 'FDM-736 hosted audit completed. Inspect step outcomes; no credential values are printed by this workflow.'
