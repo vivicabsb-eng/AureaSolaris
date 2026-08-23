@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import os
 import subprocess
 import tempfile
@@ -53,6 +52,23 @@ if os.environ.get("GITHUB_HEAD_REF") == "fdm-736/hosted-e2e-runner-v2":
             _runner._run(["npm", "ci"])
             _runner._print_npm_audit("all")
             _runner._print_npm_audit("production", "--omit=dev")
+            subprocess.run(
+                [
+                    "npm",
+                    "ls",
+                    "@babel/core",
+                    "brace-expansion",
+                    "esbuild",
+                    "flatted",
+                    "nanoid",
+                    "picomatch",
+                    "postcss",
+                    "undici",
+                    "--all",
+                ],
+                cwd=_runner.REPO_ROOT,
+                check=False,
+            )
             _runner._run(["npx", "playwright", "install", "--with-deps", "chromium"])
 
             config = _runner.REPO_ROOT / "apps" / "web" / "e2e" / "playwright.config.ts"
@@ -62,28 +78,33 @@ if os.environ.get("GITHUB_HEAD_REF") == "fdm-736/hosted-e2e-runner-v2":
             original_helper = helper.read_text(encoding="utf-8")
             original_ownership = ownership.read_text(encoding="utf-8")
 
-            config_needle = "  use: {\n    baseURL,\n"
             helper_signature = "test.beforeEach(async ({ page, request }) => {"
-            helper_health = """  const apiBypass = process.env.AUREA_VERCEL_API_PROTECTION_BYPASS;\n  const response = await request.get(`${apiUrl}/health`, {\n    headers: apiBypass ? { 'x-vercel-protection-bypass': apiBypass } : undefined,\n  });\n"""
-            helper_health_replacement = """  const apiShareUrl = process.env.AUREA_E2E_API_SHARE_URL;\n  if (!apiShareUrl) throw new Error('AUREA_E2E_API_SHARE_URL is required for protected hosted audit.');\n  await page.goto(apiShareUrl);\n  const response = await page.context().request.get(`${apiUrl}/health`);\n"""
+            helper_health = """  const apiBypass = process.env.AUREA_VERCEL_API_PROTECTION_BYPASS;\n  const response = await request.get(`${apiUrl}/health`, {\n    headers: apiBypass ? { 'x-vercel-protection-bypass': apiBypass } : undefined,\n  });\n  expect(response.ok()).toBeTruthy();\n  expect((await response.json()).status).toBe('ok');\n"""
+            helper_health_replacement = """  const apiShareUrl = process.env.AUREA_E2E_API_SHARE_URL;\n  if (!apiShareUrl) throw new Error('AUREA_E2E_API_SHARE_URL is required for protected hosted audit.');\n  await page.goto(apiShareUrl);\n  const health = await page.evaluate(async () => {\n    const response = await fetch('/health', { credentials: 'include' });\n    return { status: response.status, body: await response.json() };\n  });\n  expect(health.status).toBe(200);\n  expect(health.body.status).toBe('ok');\n"""
+            helper_route_anchor = """  const webBypass = process.env.AUREA_VERCEL_WEB_PROTECTION_BYPASS;\n  const apiBypass = process.env.AUREA_VERCEL_API_PROTECTION_BYPASS;\n\n  await page.route('**/*', async (route) => {\n"""
+            helper_route_replacement = """  const webBypass = process.env.AUREA_VERCEL_WEB_PROTECTION_BYPASS;\n  const apiBypass = process.env.AUREA_VERCEL_API_PROTECTION_BYPASS;\n  const apiCookies = await page.context().cookies(apiUrl);\n  const apiCookieHeader = apiCookies.map((cookie) => `${cookie.name}=${cookie.value}`).join('; ');\n  if (!apiBypass && !apiCookieHeader) {\n    throw new Error('Protected API browser session cookie was not established.');\n  }\n\n  await page.route('**/*', async (route) => {\n"""
+            helper_route_api_anchor = """    } else if (requestOrigin === apiOrigin && apiBypass) {\n      headers[protectionBypassHeader] = apiBypass;\n    }\n"""
+            helper_route_api_replacement = """    } else if (requestOrigin === apiOrigin && apiBypass) {\n      headers[protectionBypassHeader] = apiBypass;\n    } else if (requestOrigin === apiOrigin && apiCookieHeader) {\n      headers.cookie = apiCookieHeader;\n    }\n"""
             helper_goto = "  await page.goto('/');\n"
             ownership_signature = "test('hosted private flow and receipt ownership boundary', async ({ page, request }) => {"
             receipt_anchor = """  expect(natalBody.result_payload.meta?.receipt?.schema_version).toBe('calculation-receipt.v1');\n  expect(transitBody.result_payload.meta?.receipt?.schema_version).toBe('calculation-receipt.v1');\n"""
             receipt_replacement = receipt_anchor + """  const natalReceipt = natalBody.result_payload.meta?.receipt as Record<string, any>;\n  expect(natalReceipt?.engine?.name).toBeTruthy();\n  expect(natalReceipt?.engine?.version).toBeTruthy();\n  expect(natalReceipt?.ephemeris?.library).toBe('pyswisseph');\n  expect(natalReceipt?.ephemeris?.library_version).toBeTruthy();\n  console.log(`FDM736_SWISS_ENGINE engine=${natalReceipt.engine.name} version=${natalReceipt.engine.version} ephemeris=${natalReceipt.ephemeris.library}`);\n"""
-            other_user_anchor = """  expect(otherUser.status()).toBe(404);\n  expect((await otherUser.json()).code).toBe('receipt_not_found');\n"""
-            other_user_replacement = other_user_anchor + """\n  const ready = await page.context().request.get(`${apiUrl}/ready`);\n  expect(ready.status()).toBe(503);\n  expect((await ready.json()).code).toBe('service_not_ready');\n"""
+            request_block = """  const noToken = await request.get(`${apiUrl}/v1/astrology/receipts/${natalBody.id}`, {\n    headers: apiBypass ? { 'x-vercel-protection-bypass': apiBypass } : undefined,\n  });\n  expect(noToken.status()).toBe(401);\n\n  const otherUser = await request.get(`${apiUrl}/v1/astrology/receipts/${natalBody.id}`, {\n    headers: {\n      Authorization: `Bearer ${secondJwt}`,\n      ...(apiBypass ? { 'x-vercel-protection-bypass': apiBypass } : {}),\n    },\n  });\n  expect(otherUser.status()).toBe(404);\n  expect((await otherUser.json()).code).toBe('receipt_not_found');\n"""
+            request_replacement = """  const noToken = await page.evaluate(async (url) => {\n    const response = await fetch(url, { credentials: 'include' });\n    return { status: response.status, body: await response.json() };\n  }, `${apiUrl}/v1/astrology/receipts/${natalBody.id}`);\n  expect(noToken.status).toBe(401);\n\n  const otherUser = await page.evaluate(async ({ url, token }) => {\n    const response = await fetch(url, {\n      credentials: 'include',\n      headers: { Authorization: `Bearer ${token}` },\n    });\n    return { status: response.status, body: await response.json() };\n  }, { url: `${apiUrl}/v1/astrology/receipts/${natalBody.id}`, token: secondJwt });\n  expect(otherUser.status).toBe(404);\n  expect(otherUser.body.code).toBe('receipt_not_found');\n\n  const ready = await page.evaluate(async (url) => {\n    const response = await fetch(url, { credentials: 'include' });\n    return { status: response.status, body: await response.json() };\n  }, `${apiUrl}/ready`);\n  expect(ready.status).toBe(503);\n  expect(ready.body.code).toBe('service_not_ready');\n"""
 
             required = (
-                config_needle,
                 helper_signature,
                 helper_health,
+                helper_route_anchor,
+                helper_route_api_anchor,
                 helper_goto,
                 ownership_signature,
                 receipt_anchor,
-                other_user_anchor,
+                request_block,
             )
             haystacks = (
-                original_config,
+                original_helper,
+                original_helper,
                 original_helper,
                 original_helper,
                 original_helper,
@@ -98,6 +119,8 @@ if os.environ.get("GITHUB_HEAD_REF") == "fdm-736/hosted-e2e-runner-v2":
             helper.write_text(
                 original_helper.replace(helper_signature, "test.beforeEach(async ({ page }) => {", 1)
                 .replace(helper_health, helper_health_replacement, 1)
+                .replace(helper_route_anchor, helper_route_replacement, 1)
+                .replace(helper_route_api_anchor, helper_route_api_replacement, 1)
                 .replace(
                     helper_goto,
                     "  await page.goto(process.env.AUREA_E2E_WEB_SHARE_URL ?? '/');\n",
@@ -107,9 +130,8 @@ if os.environ.get("GITHUB_HEAD_REF") == "fdm-736/hosted-e2e-runner-v2":
             )
             ownership.write_text(
                 original_ownership.replace(ownership_signature, ownership_signature.replace(", request", ""), 1)
-                .replace("request.get(", "page.context().request.get(")
                 .replace(receipt_anchor, receipt_replacement, 1)
-                .replace(other_user_anchor, other_user_replacement, 1),
+                .replace(request_block, request_replacement, 1),
                 encoding="utf-8",
             )
 
