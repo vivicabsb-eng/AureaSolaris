@@ -140,6 +140,7 @@ def _load_cookies(*paths: Path) -> list[dict[str, object]]:
                     "expires": int(expires) if expires.isdigit() else -1,
                     "httpOnly": http_only,
                     "secure": secure.upper() == "TRUE",
+                    "sameSite": "Lax",
                 }
             )
     if len(cookies) < 2:
