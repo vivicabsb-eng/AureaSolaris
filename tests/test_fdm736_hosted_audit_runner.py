@@ -97,10 +97,11 @@ def _decrypt(private_key_path: Path, sealed: dict[str, str]) -> dict[str, str]:
 
 
 def _curl_cookie_jar(share_url: str, output: Path) -> None:
+    # The API deployment has no root route, so the share-link handshake may
+    # legitimately end at HTTP 404 after setting the protected-session cookie.
     subprocess.run(
         [
             "curl",
-            "--fail",
             "--silent",
             "--show-error",
             "--location",
