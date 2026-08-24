@@ -29,6 +29,7 @@ Não leia toda a árvore `docs/` por padrão.
 ## Forma de trabalhar
 
 - Trate o repositório fonte como unidade de trabalho; use caminhos relativos e preserve mudanças existentes.
+- Não use reset/checkout destrutivo nem force refs para trás; preserve refs e trabalho não relacionado já existente.
 - Trabalhe no domínio proprietário da mudança. Guides locais existem em `apps/web/`, `services/api/` e `supabase/` para reduzir contexto.
 - Faça mudanças pequenas e testáveis; não misture refatoração ou produto não relacionado.
 - Prefira contrato/regressão primeiro quando o comportamento puder ser especificado antes da implementação.
