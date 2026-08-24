@@ -5,7 +5,6 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 jobs:
   probe:
@@ -13,28 +12,31 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - name: Mint ephemeral GitHub OIDC token
-        uses: actions/github-script@v7
-        id: oidc
-        with:
-          script: |
-            const token = await core.getIDToken();
-            core.setSecret(token);
-            core.setOutput('token', token);
-      - name: Probe exact protected previews with OIDC only
+      - name: Verify exact protected previews with automation bypass
         env:
-          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+          WEB_BYPASS: ${{ secrets.AUREA_VERCEL_WEB_PROTECTION_BYPASS }}
+          API_BYPASS: ${{ secrets.AUREA_VERCEL_API_PROTECTION_BYPASS }}
           WEB_URL: https://aurea-solaris-f0whqpl0m-fernando-damasos-projects.vercel.app/
           API_HEALTH_URL: https://aurea-solaris-4lxgl66k1-fernando-damasos-projects.vercel.app/health
         shell: bash
         run: |
+          if [ -z "$WEB_BYPASS" ]; then
+            echo "::error::AUREA_VERCEL_WEB_PROTECTION_BYPASS is missing from GitHub Actions secrets."
+            exit 1
+          fi
+          if [ -z "$API_BYPASS" ]; then
+            echo "::error::AUREA_VERCEL_API_PROTECTION_BYPASS is missing from GitHub Actions secrets."
+            exit 1
+          fi
+          echo "FDM736_WEB_BYPASS_PRESENT=true"
+          echo "FDM736_API_BYPASS_PRESENT=true"
           web_status=$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
-            -H "x-vercel-trusted-oidc-idp-token: $OIDC_TOKEN" "$WEB_URL")
+            -H "x-vercel-protection-bypass: $WEB_BYPASS" "$WEB_URL")
           api_status=$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
-            -H "x-vercel-trusted-oidc-idp-token: $OIDC_TOKEN" "$API_HEALTH_URL")
-          echo "FDM736_TRUSTED_OIDC_WEB_STATUS=$web_status"
-          echo "FDM736_TRUSTED_OIDC_API_STATUS=$api_status"
+            -H "x-vercel-protection-bypass: $API_BYPASS" "$API_HEALTH_URL")
+          echo "FDM736_AUTOMATION_BYPASS_WEB_STATUS=$web_status"
+          echo "FDM736_AUTOMATION_BYPASS_API_STATUS=$api_status"
           if [ "$web_status" != 200 ] || [ "$api_status" != 200 ]; then
-            echo "::error::Vercel Trusted Sources is not accepting this GitHub Actions OIDC identity for both exact previews."
+            echo "::error::Vercel automation bypass did not unlock both exact previews."
             exit 1
           fi
