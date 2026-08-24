@@ -33,6 +33,10 @@ HISTORICAL_FILES = {
     "docs/RELEASE_VALIDATION_2026-08-10.md",
 }
 
+PLANNING_FILES = {
+    "docs/ROADMAP.md",
+}
+
 MARKDOWN_LINK_RE = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")
 SNAPSHOT_RE = re.compile(r"^Snapshot:\s+\*\*(?P<timestamp>[^*]+)\*\*", re.MULTILINE)
 SNAPSHOT_SHA_RE = re.compile(
@@ -63,6 +67,7 @@ NEGATIVE_OR_HISTORICAL_CONTEXT = (
 )
 
 MIRROR = "fernandodamaso/aureasolaris-deploy"
+ACTIVE_GUIDANCE_CATEGORIES = {"current", "normative", "operational"}
 
 
 @dataclass(frozen=True)
@@ -141,6 +146,8 @@ def classify_document(path: Path) -> str:
     normalized = _normalized(path)
     if normalized in HISTORICAL_FILES or any(normalized.startswith(prefix) for prefix in HISTORICAL_PREFIXES):
         return "historical"
+    if normalized in PLANNING_FILES:
+        return "planning"
     if normalized.startswith("docs/operations/"):
         return "operational"
     if normalized in {"AGENTS.md", "docs/CONSTITUICAO.md"}:
@@ -213,7 +220,7 @@ def _is_negative_or_historical_line(lower_line: str) -> bool:
 
 
 def check_active_guidance(path: Path, text: str) -> list[Violation]:
-    if classify_document(path) == "historical":
+    if classify_document(path) not in ACTIVE_GUIDANCE_CATEGORIES:
         return []
 
     violations: list[Violation] = []
@@ -425,7 +432,7 @@ def validate_repository(
 
     for document in sorted(documents, key=lambda item: item.as_posix()):
         relative = _display_path(root, document)
-        if classify_document(relative) == "historical":
+        if classify_document(relative) not in ACTIVE_GUIDANCE_CATEGORIES:
             continue
         violations.extend(check_active_guidance(relative, document.read_text(encoding="utf-8")))
 
