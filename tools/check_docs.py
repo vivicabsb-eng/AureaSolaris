@@ -35,6 +35,8 @@ HISTORICAL_FILES = {
 
 PLANNING_FILES = {
     "docs/ROADMAP.md",
+    "docs/google-calendar-integration.md",
+    "docs/EPHEMERIDES_AND_CALENDAR_PLAN.md",
 }
 
 MARKDOWN_LINK_RE = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")
@@ -219,6 +221,19 @@ def _is_negative_or_historical_line(lower_line: str) -> bool:
     return any(marker in lower_line for marker in NEGATIVE_OR_HISTORICAL_CONTEXT)
 
 
+def _mirror_statement_is_explicitly_safe(lower_line: str) -> bool:
+    return any(
+        marker in lower_line
+        for marker in (
+            "deployment-only",
+            "deployment only",
+            "not an alternate",
+            "not a development",
+            "not an alternate schema-development repository",
+        )
+    )
+
+
 def check_active_guidance(path: Path, text: str) -> list[Violation]:
     if classify_document(path) not in ACTIVE_GUIDANCE_CATEGORIES:
         return []
@@ -281,7 +296,7 @@ def check_active_guidance(path: Path, text: str) -> list[Violation]:
                 )
             )
 
-        if MIRROR in lower:
+        if MIRROR in lower and not _mirror_statement_is_explicitly_safe(lower):
             mirror_escaped = re.escape(MIRROR)
             direct_development = re.search(
                 rf"\b(?:develop|work)(?:\s+features?)?(?:\s+directly)?\s+(?:in|on|from)\s+`?{mirror_escaped}`?",
