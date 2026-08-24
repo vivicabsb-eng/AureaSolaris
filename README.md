@@ -1,63 +1,39 @@
 # Aurea Solaris
 
-Aurea Solaris Private Web V1 is a browser application in `apps/web`, backed by the authenticated FastAPI service in `services/api` and private Supabase storage. Vercel hosts the web and API projects; Supabase owns Auth, Postgres, and Row Level Security (RLS). Railway is not part of Web V1.
+Aurea Solaris Private Web V1 is a browser application backed by an authenticated FastAPI service and private Supabase storage. Vercel hosts web/API; Supabase owns Auth, Postgres, and RLS. The former desktop/local product runtime is retired, and Railway is not part of Web V1.
 
-The former desktop/local product runtime is retired. Historical records may still describe it, but they are not supported execution paths.
+## Start here
+
+Do not read the repository broadly by default.
+
+1. [`docs/CURRENT_STATE.md`](docs/CURRENT_STATE.md) — timestamped runtime/product/deployment snapshot.
+2. [`AGENTS.md`](AGENTS.md) — mandatory repository, safety, privacy, and evidence rules before making changes.
+3. [`docs/AI_WORKING_GUIDE.md`](docs/AI_WORKING_GUIDE.md) — route the task to the smallest owning domain.
+4. [`docs/NEW_FEATURE_GUIDE.md`](docs/NEW_FEATURE_GUIDE.md) — use when adding user-visible behavior or changing a contract/boundary.
+5. [`docs/index.md`](docs/index.md) — domain references when the local guide is not enough.
+
+Normative precedence is always **security/privacy → [`docs/CONSTITUICAO.md`](docs/CONSTITUICAO.md) → `AGENTS.md` → `AI_WORKING_GUIDE.md` → domain reference**. Consult the Constitution for product meaning, ownership, privacy/trust boundaries, certified astrology, and other normative decisions; routine tasks should not reread it unnecessarily.
 
 ## Repository topology
 
 - **Development/source of truth:** `vivicabsb-eng/AureaSolaris`
 - **Deployment-only mirror:** `fernandodamaso/AureaSolaris-deploy`
 
-Development, branches, PRs, CI, and merges happen in the source-of-truth repository. The deployment mirror is updated only to an exact, already-validated SHA when a promotion is authorized. An upstream/mirror SHA difference can therefore be intentional and is not automatically drift.
-
-## Current Private Web V1 scope
-
-The released private flow includes:
-
-- authentication;
-- profile and onboarding;
-- persisted birth profile;
-- Mandala/dashboard;
-- certified natal calculations;
-- certified transit calculations;
-- persisted calculation receipts.
-
-Editorial astrology knowledge and provenance are a separate, impersonal domain. Private person-owned data never becomes editorial corpus data.
-
-## Start here as an AI agent
-
-Read in this order:
-
-1. [`AGENTS.md`](AGENTS.md) — mandatory safety, privacy, repository, and validation rules.
-2. [`docs/CONSTITUICAO.md`](docs/CONSTITUICAO.md) — normative product/data decisions.
-3. [`docs/AI_WORKING_GUIDE.md`](docs/AI_WORKING_GUIDE.md) — current task routing and validation loop.
-4. [`docs/index.md`](docs/index.md) — domain references.
-
-Do not read the entire `docs/` tree by default. Use the smallest current domain reference needed for the task.
+Branches, PRs, CI, and merges happen in the source repository. The mirror receives only an explicitly authorized exact SHA for deployment. See [`docs/CURRENT_STATE.md`](docs/CURRENT_STATE.md) for the current production snapshot and [`docs/operations/`](docs/operations/) for runbooks.
 
 ## Runtime map
 
-| Area | Current entry points |
+| Area | Local entrypoint |
 | --- | --- |
-| React Web V1 | `apps/web/src/App.tsx`, `apps/web/src/app/`, `apps/web/src/components/`, `apps/web/src/features/` |
-| Browser authentication | `apps/web/src/auth/` |
-| Web API | `services/api/src/aurea_api/`, `services/api/api/index.py` |
-| Certified astrology engine | `services/api/src/aurea_api/domain/astrology/`, `services/api/ephe/` |
-| Private schema / RLS | `supabase/migrations/`, `supabase/tests/` |
+| React Web V1 | [`apps/web/AGENTS.md`](apps/web/AGENTS.md) |
+| Web API / certified astrology | [`services/api/AGENTS.md`](services/api/AGENTS.md) |
+| Private schema / RLS | [`supabase/AGENTS.md`](supabase/AGENTS.md) |
 | Editorial corpus | `knowledge/engenharia_astrologica/` |
-| Disposable Web V1 E2E | `tools/run_e2e.py`, `tools/e2e_api.py`, `apps/web/e2e/` |
-| Hosted verification | `scripts/verify_preview.sh`, `scripts/verify_vercel_preview.py` |
-| Incident / rollback | `docs/operations/INCIDENT_AND_ROLLBACK.md` |
+| Operations/deployment | [`docs/operations/`](docs/operations/) |
 
 ## Development setup
 
-Requirements:
-
-- Node.js 22
-- Python 3.12
-- npm
-- Docker and the Supabase CLI for disposable schema/RLS and full E2E checks
+Requirements: Node.js 22, Python 3.12, npm, and Docker + Supabase CLI for disposable schema/RLS and full E2E checks.
 
 From the repository root:
 
@@ -67,19 +43,19 @@ python -m pip install -e "./services/api[dev]"
 python -m pip install -r knowledge/engenharia_astrologica/requirements.txt
 ```
 
-Run the frontend development server with:
+Frontend development:
 
 ```bash
 npm run dev:web
 ```
 
-The Web API requires the environment documented in [`.env.example`](.env.example) and [`services/api/README.md`](services/api/README.md). For an integrated local verification environment, prefer the disposable harness instead of wiring a personal environment:
+The API environment is documented in [`.env.example`](.env.example) and [`services/api/README.md`](services/api/README.md). For an integrated isolated product check, prefer:
 
 ```bash
 python tools/run_e2e.py
 ```
 
-That harness creates disposable test infrastructure and synthetic identities. It is not a user-facing local Aurea runtime and must never be pointed at a person's real data or retained historical databases/backups.
+That harness creates disposable infrastructure and synthetic identities. It is test tooling, not a user-facing local Aurea runtime, and must never target real personal data or retained historical databases/backups.
 
 ## Quality commands
 
@@ -90,29 +66,16 @@ python -m ruff check services/api
 python -m mypy --config-file services/api/pyproject.toml services/api/src
 ```
 
-With Docker and the Supabase CLI available, the repository-wide gate is:
+With Docker and Supabase CLI:
 
 ```bash
 npm run quality:gate
 ```
 
-The authoritative isolated browser gate is:
-
-```bash
-python tools/run_e2e.py
-```
-
-## Product/data boundaries
-
-- Browser identity comes from Supabase Auth and is validated by the API.
-- Product persistence uses owner-scoped FastAPI repositories backed by Supabase/Postgres; RLS is defense in depth.
-- Private tables and relationships preserve the authenticated `user_id`; future multi-user expansion keeps the same boundary.
-- Astrological calculations preserve UTC, IANA timezone, location, configuration, engine/ephemeris version, and input hash.
-- Never commit secrets or point automated tests at real personal data.
-- Historical desktop/local release evidence is recoverable from Git and is not a current execution target.
+Use [`docs/NEW_FEATURE_GUIDE.md`](docs/NEW_FEATURE_GUIDE.md) to choose proportional gates instead of running unrelated suites by reflex.
 
 ## Operations
 
-Current runbooks are under [`docs/operations/`](docs/operations/). Safe production verification checks the upstream SHA, authorized mirror SHA, Vercel deployment SHA, canonical aliases, and web/API health. An application rollback restores a compatible last-known-good web/API deployment and does not destructively roll back user data.
+Current runbooks live in [`docs/operations/`](docs/operations/). Production verification is exact-SHA based and must relate the source repository, authorized deployment mirror, provider deployment metadata, canonical aliases, and health. Application rollback restores a compatible known-good web/API version and is not a destructive data rollback.
 
-Within an already-approved issue, routine provider configuration, exact-SHA mirror promotion, deployments, approved migrations, PR review/fix loops, and clean merges are agent-autonomous unless a destructive, user-data, credential, or material environment-identity boundary is encountered.
+Within an approved issue, routine reversible engineering/provider operations are agent-autonomous unless a destructive action, real personal-data risk, credential boundary, material environment ambiguity, or contradiction with the approved contract requires a human decision.
