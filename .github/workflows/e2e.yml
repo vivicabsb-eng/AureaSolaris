@@ -135,7 +135,7 @@ jobs:
             echo '```bash'
             echo 'python -m pip install -e "./services/api[dev]"'
             echo 'python -m pip install -r knowledge/engenharia_astrologica/requirements.txt'
-            echo 'python -m unittest tests.test_editorial_importer tests.test_engine_utc_boundary tests.test_legacy_runtime_retired tests.test_preview_verification_script tests.test_run_e2e tests.test_vercel_preview_verifier tests.test_web_v1_engine_contract -v'
+            echo 'python -m unittest tests.test_doc_contract tests.test_editorial_importer tests.test_engine_utc_boundary tests.test_legacy_runtime_retired tests.test_preview_verification_script tests.test_run_e2e tests.test_vercel_preview_verifier tests.test_web_v1_engine_contract -v'
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
