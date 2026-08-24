@@ -1,104 +1,62 @@
 # AGENTS.md — Aurea Solaris
 
-Este arquivo orienta pessoas, IDEs e agentes de IA. Leia-o antes de alterar código, dados, documentação ou configuração. Em caso de conflito, prevalecem segurança e privacidade; depois [`docs/CONSTITUICAO.md`](docs/CONSTITUICAO.md); depois este arquivo. Planos antigos, evidências históricas e telas existentes não redefinem o produto atual.
+Leia este arquivo antes de alterar código, dados, documentação ou configuração.
 
-Para a rota operacional compacta, leia [`docs/AI_WORKING_GUIDE.md`](docs/AI_WORKING_GUIDE.md) depois deste arquivo e consulte apenas o domínio necessário.
+## Autoridade e contexto
 
-## Produto e runtime atuais
+Em caso de conflito, a precedência é **segurança/privacidade → [`docs/CONSTITUICAO.md`](docs/CONSTITUICAO.md) → este arquivo → [`docs/AI_WORKING_GUIDE.md`](docs/AI_WORKING_GUIDE.md) → guidance/referência local do domínio**. Planos antigos, evidências históricas e telas existentes não redefinem o produto atual.
 
-A **Private Web V1** é o único runtime ativo da aplicação:
+Use o menor contexto necessário:
 
-- interface React/Vite em `apps/web`;
-- API autenticada FastAPI em `services/api`;
-- Vercel hospeda os projetos web e API;
-- Supabase fornece Auth, Postgres e RLS para dados privados da Web V1;
-- o motor astrológico certificado e as efemérides ficam sob a fronteira da API.
+- estado factual atual: [`docs/CURRENT_STATE.md`](docs/CURRENT_STATE.md);
+- roteamento da tarefa: [`docs/AI_WORKING_GUIDE.md`](docs/AI_WORKING_GUIDE.md);
+- mudanças de feature/contrato: [`docs/NEW_FEATURE_GUIDE.md`](docs/NEW_FEATURE_GUIDE.md);
+- detalhes adicionais: [`docs/index.md`](docs/index.md) e o `AGENTS.md` local do domínio, quando existir.
 
-O escopo liberado da Web V1 inclui autenticação, perfil/onboarding, perfil natal persistido, Mandala/dashboard, cálculos natais e de trânsitos certificados e seus recibos persistidos.
-
-Railway não faz parte da Web V1. O antigo produto desktop/local, o empacotamento nativo e o armazenamento SQLite de produto foram aposentados como caminhos executáveis. Evidências históricas podem descrevê-los, mas nenhum código, comando, teste ou documentação operacional atual deve depender deles.
-
-`tools/run_e2e.py` é infraestrutura de teste descartável. Ele não é um runtime local para uso da pessoa e nunca deve ser apontado para dados pessoais reais ou bancos históricos.
-
-## Repositórios e deploy
-
-- `vivicabsb-eng/AureaSolaris` é o repositório de desenvolvimento e a fonte de verdade do código.
-- `fernandodamaso/AureaSolaris-deploy` é um espelho **somente de implantação**, atualizado apenas para um SHA exato já validado.
-- Não desenvolva diretamente no espelho e não trate uma diferença entre os dois `main` como drift automático: ela pode representar uma promoção ainda não autorizada.
-- Antes de promover ou aceitar uma implantação, prove separadamente o SHA upstream, o SHA autorizado no espelho, o SHA registrado pelo deployment Vercel, os aliases canônicos e a saúde de web/API.
-- Runbooks atuais ficam em `docs/operations/`; incidentes e rollback ficam em [`docs/operations/INCIDENT_AND_ROLLBACK.md`](docs/operations/INCIDENT_AND_ROLLBACK.md).
-
-FDM-695 definiu autonomia operacional: dentro de um issue/contrato já aprovado, configuração rotineira de provedores, atualização exata do espelho, deployments previstos, migrations aprovadas, ciclos de review/fix de PR e merge limpo após verificação não devem ganhar gates humanos artificiais. Pare e peça decisão humana apenas diante de ação destrutiva não aprovada, risco real a dados pessoais, necessidade de revelar/fornecer credencial, ambiguidade material de identidade/ambiente ou contradição entre o estado real dos provedores e o contrato.
-
-## Dados e limites de confiança
-
-1. **Conhecimento editorial astrológico** — conteúdo impessoal: documentos, fontes, citações, conceitos, claims, tradições, relações, versões e artefatos editoriais. Deve preservar proveniência e divergências.
-2. **Dados privados por pessoa** — perfil, dados de nascimento, recibos de cálculo e demais registros privados do produto. Na Web V1, ficam no Supabase/Postgres e são sempre owner-scoped.
-
-Não misture dados privados ao corpus editorial. Não apague ou deduplique conteúdo editorial sem preservar origem e decisão de revisão.
-
-A identidade de proprietário vem do token autenticado validado pela API e das políticas RLS, nunca de um `owner_id` arbitrário enviado pelo cliente. Toda expansão multiusuário preserva essa regra, queries owner-scoped, RLS em tabelas privadas e relações que não atravessem proprietários.
+Não leia toda a árvore `docs/` por padrão.
 
 ## Regras inegociáveis
 
-- **Precisão astrológica:** cálculos registram UTC, fuso IANA, local, zodíaco, ayanamsa quando aplicável, sistema de casas, orbes, pontos, versão de efeméride/motor e hash de entrada. Sem fallback silencioso. Mudanças do motor exigem testes de referência e relatório de diferenças.
-- **Privacidade:** nunca versionar senha, chave de API, token, JWT, cookie, segredo de banco ou credencial de provedor. Não registrar valores de autorização nem corpos privados em logs.
-- **Isolamento:** dados privados são owner-scoped na API e protegidos também por RLS. Credenciais privilegiadas do servidor não entram no navegador.
-- **Saúde:** anexos e exames, quando fizerem parte de escopos futuros, permanecem privados e só são processados após ação explícita. Astrologia médica é estudo/observação, nunca diagnóstico ou prescrição.
-- **Ações revisáveis:** Hermes não cria memória, tarefa, evento, interpretação permanente ou ação externa silenciosamente.
-- **Dados históricos locais:** nunca inspecionar, semear, migrar, apagar ou alterar diretórios, bancos SQLite ou backups reais de uma pessoa fora de um contrato explícito e separado de migração de dados.
+- **Privacidade e segredos:** nunca versione senha, chave de API, token, JWT, cookie, segredo de banco, credencial de provedor ou dado privado de pessoa. Não registre autorização nem corpos privados em logs.
+- **Identidade e isolamento:** o proprietário de dados privados vem da autenticação validada pela API, nunca de um `owner_id` arbitrário enviado pelo cliente. Queries permanecem owner-scoped e RLS continua como defesa adicional.
+- **Dados editoriais ≠ dados privados:** conhecimento astrológico editorial é impessoal e preserva proveniência/divergências; registros de pessoa nunca entram no corpus editorial.
+- **Precisão astrológica:** cálculos certificados preservam UTC, fuso IANA, local, configuração, versão de motor/efeméride e hash de entrada. Sem fallback silencioso ou aproximação inventada. Mudança de comportamento exige testes de referência e relatório de diferenças.
+- **Browser não é fronteira privilegiada:** credenciais confiáveis, segredos de servidor e lógica de certificação não são enviados ao frontend.
+- **Runtime aposentado:** a Private Web V1 é o runtime de produto suportado. Não reintroduza arquitetura desktop/local nem Railway como execução/deploy ativo. Infraestrutura local descartável continua sendo apenas tooling de desenvolvimento/teste.
+- **Dados históricos reais:** nunca inspecione, semeie, migre, apague ou altere bancos/backups/diretórios pessoais reais fora de um contrato explícito e separado de migração de dados.
+- **Hermes e ações persistentes:** memória, tarefa, evento, interpretação permanente ou ação externa exigem o fluxo revisável definido pelo produto; não crie efeitos silenciosos.
 
-## Forma de trabalhar no repositório
+## Forma de trabalhar
 
-- Trate o repositório aberto como unidade de trabalho. Use caminhos relativos; não codifique caminhos pessoais de máquina.
-- Antes de alterações amplas, examine Git/refs e preserve mudanças existentes. Não use reset/checkout destrutivo nem force refs para trás.
-- Faça mudanças pequenas, testáveis e documentadas. Não misture trabalho de produto não relacionado.
-- Não use `npm audit fix --force` nem atualizações de dependência em massa sem revisão.
-- Para mudanças no Web V1, valide frontend, API, contratos gerados, schema/RLS e E2E proporcionalmente ao risco.
-- Antes de concluir, confira o diff completo, arquivos adicionados/removidos, CI e pendências reais. Todo arquivo intencional deve estar commitado.
-- Nunca invente conclusão de teste, fonte, cálculo, SHA ou estado de provedor.
+- Trate o repositório fonte como unidade de trabalho; use caminhos relativos e preserve mudanças existentes.
+- Trabalhe no domínio proprietário da mudança. Guides locais existem em `apps/web/`, `services/api/` e `supabase/` para reduzir contexto.
+- Faça mudanças pequenas e testáveis; não misture refatoração ou produto não relacionado.
+- Prefira contrato/regressão primeiro quando o comportamento puder ser especificado antes da implementação.
+- Atualize artefatos derivados (OpenAPI/tipos/schema/runbook) quando a fonte correspondente mudar.
+- Rode gates proporcionais ao risco conforme [`docs/NEW_FEATURE_GUIDE.md`](docs/NEW_FEATURE_GUIDE.md); não enfraqueça fronteiras para fazer teste passar.
+- Não use `npm audit fix --force` nem atualização de dependências em massa sem revisão específica.
+- Antes de concluir, revise o diff completo, arquivos adicionados/removidos, referências de runtime, segredos, CI e pendências reais.
+- Nunca invente conclusão de teste, fonte, cálculo, SHA, deployment ou estado de provedor.
 
-## Mapa de código atual
+## Repositório e operações
 
-| Área | Pontos de entrada |
-| --- | --- |
-| Composição React | `apps/web/src/app/AppProviders.tsx`, `apps/web/src/App.tsx` |
-| Interface/componentes | `apps/web/src/components/` |
-| Autenticação | `apps/web/src/auth/` |
-| Identidade/perfil | `apps/web/src/features/identity/`, `apps/web/src/profile/` |
-| Agenda | `apps/web/src/features/agenda/` |
-| Astrologia no frontend | `apps/web/src/features/astrology/`, `apps/web/src/hooks/` |
-| Cliente HTTP | `apps/web/src/api/` |
-| Web API | `services/api/src/aurea_api/`, `services/api/api/index.py` |
-| Motor certificado | `services/api/src/aurea_api/domain/astrology/`, `services/api/ephe/` |
-| Schema/RLS | `supabase/migrations/`, `supabase/tests/` |
-| Corpus editorial | `knowledge/engenharia_astrologica/` |
-| E2E descartável | `tools/run_e2e.py`, `tools/e2e_api.py`, `apps/web/e2e/` |
-| Operações/deploy | `docs/operations/`, `scripts/verify_preview.sh`, `scripts/verify_vercel_preview.py` |
+`vivicabsb-eng/AureaSolaris` é a fonte de verdade de desenvolvimento. `fernandodamaso/AureaSolaris-deploy` é somente o espelho de implantação por objeto Git exato já validado; não desenvolva nele nem trate diferença de SHA como drift automático.
 
-Os arquivos raiz `astro_engine.py` e `engine_governance.py` são imports finos de compatibilidade para contratos de cálculo/transição; não são runtime de aplicação.
+Dentro de um issue/contrato já aprovado, operações rotineiras e reversíveis de engenharia — incluindo configuração prevista de provedor, promoção por SHA exato, deployment previsto, migration aprovada, review/fix de PR e merge limpo após verificação — são agent-autonomous.
 
-## Comandos usuais
+Interrompa e peça decisão humana somente diante de ação destrutiva não aprovada, risco real a dados pessoais, necessidade de revelar/fornecer credencial, ambiguidade material de identidade/ambiente ou contradição factual entre o estado real e o contrato aprovado.
 
-Execute a partir da raiz:
+Para deploy/rollback, siga `docs/operations/`. Alias sozinho não prova provenance: relacione upstream SHA, mirror SHA autorizado, metadata do deployment, aliases e health.
 
-```bash
-npm ci
-npm run check:web
-python -m pip install -e "./services/api[dev]"
-python -m pip install -r knowledge/engenharia_astrologica/requirements.txt
-python -m pytest services/api/tests -q
-```
+## Handoff
 
-Com Docker e Supabase CLI:
+Informe de forma breve:
 
-```bash
-npm run quality:gate
-python tools/run_e2e.py
-```
+- objetivo/contrato alterado;
+- arquivos afetados;
+- fronteira de risco tocada (ou `nenhuma`);
+- validações executadas;
+- SHA final e CI/deployment evidence quando aplicável;
+- residual real/histórico mantido.
 
-O E2E cria infraestrutura descartável e identidades sintéticas. Não altere essa fronteira para fazer um teste passar.
-
-## Comunicação de agentes
-
-Informe de forma breve: objetivo, arquivos afetados, risco para dados, validação, commit/PR e pendências reais. Para operações hospedadas, registre somente evidência sanitizada como IDs, aliases, estados, contagens e SHAs; nunca valores secretos.
+Evidência hospedada deve ser sanitizada: IDs, aliases, estados, contagens e SHAs são aceitáveis; valores secretos e dados privados não são.
