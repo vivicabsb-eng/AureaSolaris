@@ -55,7 +55,7 @@ class DocumentationDriftGuardTests(unittest.TestCase):
         self.assertEqual(len(violations), 1)
         self.assertIn("[repo.mirror_development]", violations[0].render())
 
-    def test_historical_and_evidence_paths_are_not_active_guidance(self) -> None:
+    def test_historical_evidence_and_planning_paths_are_not_active_guidance(self) -> None:
         self.assertEqual(classify_document(Path("docs/archive/desktop-history.md")), "historical")
         self.assertEqual(
             classify_document(Path("docs/operations/deployments/2026-08-10.md")),
@@ -65,6 +65,7 @@ class DocumentationDriftGuardTests(unittest.TestCase):
             classify_document(Path("docs/operations/WEB_V1_COMPLETION_REPORT.md")),
             "historical",
         )
+        self.assertEqual(classify_document(Path("docs/ROADMAP.md")), "planning")
 
     def test_explicit_retired_runtime_statements_are_allowed(self) -> None:
         text = (
