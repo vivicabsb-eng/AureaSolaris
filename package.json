@@ -27,6 +27,8 @@
     "test:web": "npm --workspace @aurea/web run test",
     "api:generate": "npm --workspace @aurea/web run api:generate",
     "api:check": "npm --workspace @aurea/web run api:check",
+    "docs:check": "python tools/check_docs.py",
+    "quality:docs": "bash scripts/quality-gate.sh docs",
     "quality:web": "bash scripts/quality-gate.sh web",
     "quality:api": "bash scripts/quality-gate.sh api",
     "quality:schema": "bash scripts/quality-gate.sh schema",
