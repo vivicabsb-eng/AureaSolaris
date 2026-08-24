@@ -57,7 +57,7 @@ NEGATIVE_OR_HISTORICAL_CONTEXT = (
     "deprecated",
     "aposent",
     "históric",
-    "histor",\n    "não ",
+    "não ",
     "nao ",
     "antigo",
 )
