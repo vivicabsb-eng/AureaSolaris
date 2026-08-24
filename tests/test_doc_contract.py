@@ -66,13 +66,16 @@ class DocumentationDriftGuardTests(unittest.TestCase):
             "historical",
         )
         self.assertEqual(classify_document(Path("docs/ROADMAP.md")), "planning")
+        self.assertEqual(classify_document(Path("docs/google-calendar-integration.md")), "planning")
+        self.assertEqual(classify_document(Path("docs/EPHEMERIDES_AND_CALENDAR_PLAN.md")), "planning")
 
-    def test_explicit_retired_runtime_statements_are_allowed(self) -> None:
+    def test_explicit_retired_runtime_and_deployment_only_statements_are_allowed(self) -> None:
         text = (
             "Tauri is retired and is not a supported runtime.\n"
             "Railway is not part of Web V1.\n"
             "The former SQLite product store is historical only.\n"
             "Do not develop in fernandodamaso/AureaSolaris-deploy; it is deployment-only.\n"
+            "fernandodamaso/AureaSolaris-deploy is an exact-SHA deployment mirror, not an alternate schema-development repository.\n"
         )
 
         self.assertEqual(check_active_guidance(Path("docs/guide.md"), text), [])
