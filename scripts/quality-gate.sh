@@ -15,7 +15,7 @@ select_python() {
   elif command -v python3 >/dev/null 2>&1; then
     PYTHON="python3"
   else
-    printf 'Python 3.12 is required for the API quality gate.\n' >&2
+    printf 'Python 3.12 is required for the repository quality gates.\n' >&2
     exit 1
   fi
 }
@@ -32,6 +32,12 @@ select_supabase() {
     printf 'Supabase CLI is required for the schema quality gate.\n' >&2
     exit 1
   fi
+}
+
+quality_docs() {
+  select_python
+  "$PYTHON" tools/check_docs.py
+  "$PYTHON" -m unittest tests.test_doc_contract -v
 }
 
 quality_web() {
@@ -81,18 +87,20 @@ quality_api_deploy_contract() {
 }
 
 case "${1:-all}" in
+  docs) quality_docs ;;
   web) quality_web ;;
   api) quality_api ;;
   schema) quality_schema ;;
   api-deploy-contract) quality_api_deploy_contract ;;
   all)
+    quality_docs
     quality_web
     quality_api
     quality_schema
     quality_api_deploy_contract
     ;;
   *)
-    printf 'Usage: %s {web|api|schema|api-deploy-contract|all}\n' "$0" >&2
+    printf 'Usage: %s {docs|web|api|schema|api-deploy-contract|all}\n' "$0" >&2
     exit 2
     ;;
 esac
