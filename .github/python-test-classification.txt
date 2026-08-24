@@ -1,9 +1,10 @@
 # Every tests/test_*.py module must appear exactly once.
 # FDM-734 leaves only supported cross-platform Web V1, engine, editorial,
-# hosted-verification, dependency-security, and runtime-retirement contracts in the root Python suite.
+# hosted-verification, dependency-security, documentation/runtime-retirement contracts in the root Python suite.
 # python-quality tests run with disposable CI process state only.
 
 python-quality tests/test_dependency_security_floor.py
+python-quality tests/test_doc_contract.py
 python-quality tests/test_editorial_importer.py
 python-quality tests/test_engine_utc_boundary.py
 python-quality tests/test_legacy_runtime_retired.py
