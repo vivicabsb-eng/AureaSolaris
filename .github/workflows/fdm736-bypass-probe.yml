@@ -14,8 +14,8 @@ jobs:
     env:
       WEB_BYPASS: ${{ secrets.AUREA_VERCEL_WEB_PROTECTION_BYPASS }}
       API_BYPASS: ${{ secrets.AUREA_VERCEL_API_PROTECTION_BYPASS }}
-      WEB_URL: https://aurea-solaris-f0whqpl0m-fernando-damasos-projects.vercel.app
-      API_URL: https://aurea-solaris-4lxgl66k1-fernando-damasos-projects.vercel.app
+      WEB_URL: https://aurea-solaris-git-preview-fernando-damasos-projects.vercel.app
+      API_URL: https://aurea-solaris-api-git-preview-fernando-damasos-projects.vercel.app
       HELPER_URL: https://rosklqnnbmhowohoyboj.supabase.co/functions/v1/fdm-736-audit-helper
       AUREA_PRODUCTION_API_URL: https://aurea-solaris-api.vercel.app
       AUREA_PRODUCTION_SUPABASE_URL: https://tgpcpxqqusehssaihvcp.supabase.co
