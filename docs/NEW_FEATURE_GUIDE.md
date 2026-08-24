@@ -21,6 +21,7 @@ Start with [`CURRENT_STATE.md`](CURRENT_STATE.md), root [`AGENTS.md`](../AGENTS.
 
 | Change type | Own it here | Must preserve | Minimum focused validation | Escalate validation when |
 | --- | --- | --- | --- | --- |
+| Documentation/agent guidance | root agent docs, `docs/`, local `AGENTS.md` | authority hierarchy, current runtime/topology, valid local links, history/planning separation | `npm run docs:check` | runtime/operations assertions or CI quality configuration change |
 | Frontend-only | `apps/web/` | authenticated boundary, no privileged browser secrets, accessible/user-visible behavior | `npm run check:web` | API-generated types, auth flow, persistence, or browser E2E changes |
 | API | `services/api/` | validated identity, owner scoping, fail-closed errors/log redaction | affected pytest + `python -m ruff check services/api` + mypy | routes/contracts/auth/persistence/certified service change |
 | Schema/RLS | `supabase/` | `user_id`, RLS, owner-aware relationships, anonymous denial | disposable schema/RLS tests via `npm run quality:schema` | any private-table or ownership policy changes; then prove two identities and run full E2E |
@@ -45,6 +46,9 @@ Before implementation, answer only the applicable rows:
 Use the cheapest gate that can falsify the change, then widen when the contract crosses a boundary.
 
 ```bash
+# Documentation / agent-facing contract
+npm run docs:check
+
 # Frontend
 npm run check:web
 
@@ -62,6 +66,10 @@ npm run quality:gate
 # Isolated browser/product flow
 python tools/run_e2e.py
 ```
+
+`npm run docs:check` is offline and deterministic. It validates repository-local links for canonical/routed agent docs, contextual active-runtime contradictions, the compact architecture assertions in `CURRENT_STATE.md`, and snapshot timestamp/SHA format. Historical evidence and explicit planning documents may preserve retired technology context without being treated as active execution guidance.
+
+`CURRENT_STATE.md` is a timestamped snapshot, not a moving-HEAD marker. The checker requires valid metadata and rejects a clearly stale snapshot (currently older than 180 days), but it does **not** require the recorded SHA to equal every later unrelated commit. Refresh the snapshot when its factual product/runtime/operations state is reviewed or materially changes.
 
 Do not redirect disposable tests to real personal data, retained databases, or production merely to make a gate pass.
 
