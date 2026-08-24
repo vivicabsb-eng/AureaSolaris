@@ -1,10 +1,8 @@
 # Aurea Solaris — Architecture
 
-## Current target
+This document describes the supported architecture and its stable boundaries. For the timestamped product/production snapshot, exact current `main` SHA, deployment IDs, and accepted residuals, use [`CURRENT_STATE.md`](CURRENT_STATE.md). Promotion status does not belong in this architecture reference.
 
-Aurea Solaris Private Web V1 is a hosted browser application. `apps/web` is the React/Vite client, `services/api` is the authenticated FastAPI service, Vercel hosts both projects, and Supabase owns Auth/Postgres/RLS for private Web V1 data.
-
-Railway is not part of Web V1. The former desktop/local product runtime, native packaging path, and desktop SQLite persistence are retired. Historical evidence may describe them, but they are not current architecture or operational guidance.
+The supported application architecture is web-first: `apps/web` is the React/Vite client, `services/api` is the authenticated FastAPI service, Vercel hosts both projects, and Supabase owns Auth/Postgres/RLS for private Web V1 data. Railway is not part of Web V1; the former desktop/local product runtime is historical only.
 
 ## Runtime layers
 
@@ -70,6 +68,8 @@ Safe verification therefore checks:
 3. each Vercel deployment's recorded repository/ref/SHA;
 4. canonical web/API aliases;
 5. web/API health and the documented readiness contract.
+
+Exact current objects belong in [`CURRENT_STATE.md`](CURRENT_STATE.md), while verification procedure belongs in `docs/operations/`.
 
 ## Private-data ownership
 
