@@ -1,8 +1,10 @@
 # Constituição do Aurea Solaris
 
-Este é o documento-base para pessoas, IDEs e LLMs. Em caso de conflito, ele prevalece sobre telas, planos antigos, registros históricos e código legado.
+Este é o documento normativo-base para pessoas, IDEs e LLMs. Em caso de conflito, a precedência é **segurança/privacidade → esta Constituição → [`../AGENTS.md`](../AGENTS.md) → [`AI_WORKING_GUIDE.md`](AI_WORKING_GUIDE.md) → guidance/referência local do domínio**. Telas, planos antigos, snapshots factuais e registros históricos não redefinem estas decisões.
 
-O roteiro canônico de execução está em [ROADMAP.md](ROADMAP.md). Ele define dependências, verticais de entrega e o que fica fora de escopo em cada etapa.
+O estado factual/timestamped do produto e produção fica em [`CURRENT_STATE.md`](CURRENT_STATE.md); regras operacionais do repositório ficam em `AGENTS.md`; roteamento de tarefas fica no `AI_WORKING_GUIDE.md`. Esses documentos devem apontar para esta Constituição em vez de duplicar ou reinterpretar decisões normativas.
+
+O roteiro de entregas está em [ROADMAP.md](ROADMAP.md). Ele organiza dependências, verticais e escopo planejado; não substitui o snapshot de runtime atual nem transforma item planejado em recurso já entregue.
 
 ## Missão
 

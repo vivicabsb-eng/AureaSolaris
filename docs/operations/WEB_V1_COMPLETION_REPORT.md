@@ -1,8 +1,26 @@
 # Private Web V1 Completion Audit — FDM-736
 
-Status: **PRE-MERGE AUDIT PASSED — FINAL CI / PRODUCTION PROMOTION PENDING**
+Status: **COMPLETED — FINAL CI GREEN; PRODUCTION PROMOTED 2026-08-24**
+
+FDM-736 is complete. The current production promotion is no longer pending. Sections below preserve the original pre-finalization audit checkpoint; any `PENDING` item or unchecked finalization box there is **historical point-in-time evidence**, not the current Web V1 status.
 
 This report is the sanitized repository evidence map for Linear FDM-736. It contains identifiers and outcomes only; credentials, JWTs, database URLs, service-role keys, provider tokens, protection-bypass values, and private user records are intentionally excluded.
+
+## Final completion addendum — 2026-08-24
+
+- Final validated feature head: `706633be08272698fb6dd70d89752b571943122b`.
+- Merge/current upstream `main`: `42cf16d0f336f4c84fab4b7ec905251732ea284f`.
+- Deployment-mirror `main`: exact same SHA `42cf16d0f336f4c84fab4b7ec905251732ea284f`.
+- Final repository CI: runs `32748332216`, `32748332263`, and `32748332268` — SUCCESS.
+- Web production: `dpl_2HgkMxqsYNDnDJTKThW9C5uhsaCL` — READY, canonical alias `aurea-solaris.vercel.app`.
+- API production: `dpl_69qFHykosMw4eLDSTkd1JZBoE8Mb` — READY, canonical alias `aurea-solaris-api.vercel.app`.
+- Fresh canonical smoke: web `/` 200; API `/health` 200; API `/ready` 503 `service_not_ready` as the accepted fail-closed contract; unauthenticated `/v1/me` 401.
+- Production Supabase `tgpcpxqqusehssaihvcp`: `ACTIVE_HEALTHY`; the previously accepted leaked-password-protection advisory remains.
+- The FDM-733 owner-authenticated production attestation was reused exactly as allowed by the FDM-736 contract; no owner credential/token was exported.
+
+Immutable final evidence, including exact tree/provenance and residual details, is recorded in [Linear FDM-736](https://linear.app/fdamaso/issue/FDM-736/p410-run-the-final-security-and-web-v1-completion-audit). The audit material below remains unchanged in meaning so its pre-merge provenance is recoverable.
+
+## Historical pre-finalization audit record
 
 ## Audit identity
 
