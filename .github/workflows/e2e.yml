@@ -54,16 +54,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Probe expected hosted-audit bypass secrets without exposing values
-        env:
-          WEB_BYPASS: ${{ secrets.AUREA_VERCEL_WEB_PROTECTION_BYPASS }}
-          API_BYPASS: ${{ secrets.AUREA_VERCEL_API_PROTECTION_BYPASS }}
-        shell: bash
-        run: |
-          if [ -n "$WEB_BYPASS" ]; then web=true; else web=false; fi
-          if [ -n "$API_BYPASS" ]; then api=true; else api=false; fi
-          echo "FDM736_WEB_BYPASS_PRESENT=$web"
-          echo "FDM736_API_BYPASS_PRESENT=$api"
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
